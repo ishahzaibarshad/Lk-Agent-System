@@ -1,0 +1,6 @@
+livekit-agents
+livekit
+python-dotenv
+openai
+twilio
+flask
