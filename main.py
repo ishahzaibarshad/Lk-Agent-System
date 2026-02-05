@@ -1797,7 +1797,7 @@
 
 
 
-#Different Greeting Msgs
+#llm agent.
 # NSOL BPO Voice AI Agent - Merideth
 # LiveKit Agent with ElevenLabs STT/TTS and OpenAI fallback
 
@@ -1809,9 +1809,8 @@ import time
 from contextlib import asynccontextmanager
 from typing import Optional
 
-import uvicorn
 from dotenv import load_dotenv
-from fastapi import FastAPI, WebSocket, WebSocketDisconnect, Request, HTTPException, Body
+from fastapi import FastAPI, WebSocket, WebSocketDisconnect, Request, HTTPException
 from fastapi.responses import Response
 from pydantic import BaseModel, Field
 
@@ -2042,8 +2041,54 @@ CLOSING SCRIPT
 ...
 
 "Thank you so much for your time! talk soon! Goodbye!"
-"""
 
+DELIVERY & TONE GUIDANCE
+(Professional yet warm—sound like a knowledgeable partner, not a pushy salesperson.)
+
+Energy Adjustments:
+• Emphasize benefits: TIME, GROW, FREE, RESULTS (slightly increase energy)
+• Handle objections: calm, empathetic, non-defensive (slower pace)
+• Close booking: confident, enthusiastic (smile in voice)
+
+Speech Patterns:
+• Short sentences: 1-2 lines maximum
+• Natural fillers sparingly: "you know," "I mean," "look," "listen"
+• Vary pace: speed up when enthusiastic, slow down for key points
+• Mirror customer's energy level appropriately
+
+Punctuation for Pacing:
+• Use ... for natural pauses
+• Use , for brief pauses
+• Use — for topic shifts or interruptions
+• Use . for full stops
+
+Cultural Sensitivity:
+• Clear, simple English for global understanding
+• Moderate pace (especially with non-native speakers)
+• Avoid slang or region-specific idioms
+• Be patient and respectful of all backgrounds
+
+PERSISTENCE STRATEGY
+Numbered Priority:
+
+1. Make up to 3 attempts to schedule using different value angles
+2. After 3 attempts → gracefully end conversation
+3. Always stay helpful and positive
+4. Leave door open for future contact
+
+IF first attempt fails: Focus on TIME savings
+
+IF second attempt fails: Focus on REVENUE growth
+
+IF third attempt fails: (Use respectful, appreciative tone.) "I appreciate your time today. If anything changes and you'd like to explore this, feel free to reach out. Wishing you continued success!"
+
+PRIMARY GOAL REMINDER
+REMEMBER:
+Your primary goal is to book a qualified meeting.
+If unsure what to do, guide toward booking.
+Stay helpful, warm, and focused on their time-saving needs.
+
+"""
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -2097,6 +2142,15 @@ class OutboundCallRequest(BaseModel):
     room_name: Optional[str] = Field(None, description="Optional LiveKit room name (auto-generated if not provided)")
     webhook_base_url: str = Field(..., description="Your public base URL (e.g., https://your-domain.com)")
 
+    class Config:
+        json_schema_extra = {
+            "example": {
+                "to_number": "+14155551234",
+                "room_name": "call-123",
+                "webhook_base_url": "https://your-domain.ngrok.io"
+            }
+        }
+
 
 class OutboundCallResponse(BaseModel):
     """Response model for outbound call requests"""
@@ -2124,6 +2178,7 @@ async def place_outbound_call(request: OutboundCallRequest):
 
     try:
         room_name = request.room_name or f"call-{int(time.time())}"
+
         webhook_url = f"{request.webhook_base_url.rstrip('/')}/twilio/webhook?room_name={room_name}"
         status_callback_url = f"{request.webhook_base_url.rstrip('/')}/twilio/status"
 
@@ -2134,7 +2189,9 @@ async def place_outbound_call(request: OutboundCallRequest):
         )
 
         if result["success"]:
-            websocket_url = f"wss://{request.webhook_base_url.replace('https://', '').replace('http://', '').rstrip('/')}/twilio/media"
+            websocket_url = (
+                f"wss://{request.webhook_base_url.replace('https://', '').replace('http://', '').rstrip('/')}/twilio/media"
+            )
             return OutboundCallResponse(
                 success=True,
                 call_sid=result["call_sid"],
@@ -2142,11 +2199,7 @@ async def place_outbound_call(request: OutboundCallRequest):
                 room_name=room_name,
                 websocket_url=websocket_url
             )
-        else:
-            return OutboundCallResponse(
-                success=False,
-                error=result.get("error", "Unknown error")
-            )
+        return OutboundCallResponse(success=False, error=result.get("error", "Unknown error"))
 
     except Exception as e:
         logger.error(f"Error in place_outbound_call: {str(e)}")
@@ -2220,16 +2273,7 @@ async def twilio_media_websocket(websocket: WebSocket):
 # NSOL BPO SCRIPTED AGENT - MERIDETH
 # -----------------------------------------------------------------------------
 class NSOLBPOAgent:
-    # ✅ ONLY CHANGE YOU REQUESTED:
-    # Random greeting from this list on every new call/session.
-    # Keep greetings aligned with the prompt "Hi, this is Merideth... how's your day going?"
-    GREETINGS = [
-        "Hi, this is Merideth... how's your day going?",
-        "Hi, this is Merideth... how's your day going so far?",
-        "Hi, Merideth here... how's your day going?",
-        "Hi, this is Merideth... hope you're doing well. How's your day going?",
-        "Hi, this is Merideth... how are things going today?",
-    ]
+    GREETINGS = ["Hi, this is Merideth... how's your day going?"]
 
     MOOD_RESPONSES = {
         "tired": "I hear you. I'll keep this super quick... just two minutes.",
@@ -2349,35 +2393,6 @@ class NSOLBPOAgent:
         "send_info_end": "Great. I'll send over the information to your email shortly. If you have any questions afterward, feel free to reach out. Have a great day!",
     }
 
-    CONTINUITY = {
-        "go_on": "Great. So as I was saying...",
-        "sorry_disruption": "Sorry about that. Just to continue...",
-        "still_here": "Yes, I'm here. I apologize for the disruption.",
-        "thank_patience": "Thank you for your patience.",
-        "thank_clarifying": "Thank you for clarifying.",
-        "got_it": "Got it.",
-        "perfect": "Perfect.",
-        "great": "Great.",
-        "awesome": "Awesome.",
-        "no_problem": "No problem.",
-        "no_worries": "No worries at all.",
-        "understand": "I understand.",
-        "appreciate": "I appreciate that.",
-    }
-
-    EMAIL_CONFIRM = {
-        "ask_spell": "Could you please spell that out for me?",
-        "confirm_spelled": "Just to confirm, that's {email}. Is that correct?",
-        "wrong_email": "Thank you for the correction. So it's {email}. Got it.",
-        "got_email": "Got it. So that's {email}. Right?",
-    }
-
-    PHONE_CONFIRM = {
-        "ask_digits": "Could you please provide the digits one by one?",
-        "confirm_digits": "Let me confirm that. That's {phone}. Is that correct?",
-        "wrong_phone": "Thank you for the correction. So it's {phone}. Right?",
-    }
-
 
 # -----------------------------------------------------------------------------
 # OpenAI prompts (uses STATE_MACHINE_PROMPT for context)
@@ -2400,18 +2415,45 @@ SERVICE_Q_SYSTEM = f"""
 {STATE_MACHINE_PROMPT}
 
 {HUMAN_VOICE_RULES}
+
+CONTEXT: The user asked a question about NSOL BPO services, pricing, or how the virtual assistant services work.
+
+YOUR TASK:
+- Answer their question naturally and conversationally (2-4 sentences)
+- Sound like a real person on a phone call, not a script
+- Be helpful and informative - if user wants to learn more, provide details
+- After answering 2-3 questions, gently suggest: "These are great questions. The Zoom briefing would let us dive even deeper. What time works best for you?"
+- If user keeps asking, keep answering naturally - don't force the booking
 """.strip()
 
 GENERIC_Q_SYSTEM = f"""
 {STATE_MACHINE_PROMPT}
 
 {HUMAN_VOICE_RULES}
+
+CONTEXT: The user asked a random or generic question NOT directly about NSOL BPO or virtual assistant services (weather, sports, news, personal questions, small talk, etc.)
+
+YOUR TASK:
+- Answer briefly and naturally like a professional would
+- Keep it SHORT - 1-2 sentences max
+- If you genuinely don't know something, be honest: "I'm not sure about that one"
+- Engage in light small talk if appropriate (builds rapport)
+- After 1-2 exchanges of small talk, naturally transition: "So, regarding how we can help save you time, do you have a moment to discuss?"
+- Don't be robotic - some brief rapport building is good
 """.strip()
 
 IDENTITY_Q_SYSTEM = f"""
 {STATE_MACHINE_PROMPT}
 
 {HUMAN_VOICE_RULES}
+
+CONTEXT: The user is asking if you're a robot, AI, or human.
+
+YOUR TASK:
+- Respond simply and honestly: "I'm an assistant"
+- Then redirect to the conversation
+- Sound professional and composed
+- Keep it brief and move forward
 """.strip()
 
 
@@ -2518,7 +2560,7 @@ def detect_mood(text: str) -> str:
 
 def parse_time_to_hour_only(text: str) -> tuple[bool, str]:
     t = text.lower().strip()
-    time_pattern = re.search(r'(\d{1,2}):(\d{2})\s*(am|pm)?', t, re.I)
+    time_pattern = re.search(r"(\d{1,2}):(\d{2})\s*(am|pm)?", t, re.I)
     if time_pattern:
         hour = int(time_pattern.group(1))
         minutes = int(time_pattern.group(2))
@@ -2533,6 +2575,21 @@ def parse_time_to_hour_only(text: str) -> tuple[bool, str]:
             suggested = f"{hour}:00 {period}".strip()
             return True, suggested
     return False, text
+
+
+def is_identity_question(text: str) -> bool:
+    t = normalize(text)
+    identity_keywords = [
+        "are you human", "are you a human", "are you robot", "are you a robot",
+        "human or robot", "are you ai", "are you an ai", "are you artificial",
+        "are you real", "are you a real person", "real person", "talking to a bot",
+        "talking to ai", "is this ai", "is this a bot", "is this automated",
+        "am i talking to a robot", "am i talking to ai", "am i talking to a computer",
+        "are you a machine", "are you automated", "are you a program", "are you software",
+        "bot or human", "machine or human", "ai or human", "chatbot", "voice bot",
+        "are you alive", "do you have feelings", "are you sentient"
+    ]
+    return any(k in t for k in identity_keywords)
 
 
 def refusal_type(text: str) -> str | None:
@@ -2572,7 +2629,7 @@ def detect_objection(text: str) -> str | None:
         return "have_to_go"
     if any(k in t for k in ["maybe later", "think about it", "let me think", "ill think", "i'll think"]):
         return "maybe_later"
-    if t == "not interested" or t == "im not interested" or t == "i'm not interested":
+    if t in {"not interested", "im not interested", "i'm not interested"}:
         return "not_interested"
     if any(k in t for k in ["not interested", "no thanks"]):
         return "not_interested"
@@ -2632,24 +2689,9 @@ def detect_user_question_key(text: str) -> str | None:
         return "still_there"
     if any(k in t for k in ["could you clarify", "what do you mean", "clarify"]):
         return "clarify"
-    if is_identity_question(t):
+    if is_identity_question(text):
         return "human_or_robot"
     return None
-
-
-def is_identity_question(text: str) -> bool:
-    t = normalize(text) if text == text.lower() else normalize(text)
-    identity_keywords = [
-        "are you human", "are you a human", "are you robot", "are you a robot",
-        "human or robot", "are you ai", "are you an ai", "are you artificial",
-        "are you real", "are you a real person", "real person", "talking to a bot",
-        "talking to ai", "is this ai", "is this a bot", "is this automated",
-        "am i talking to a robot", "am i talking to ai", "am i talking to a computer",
-        "are you a machine", "are you automated", "are you a program", "are you software",
-        "bot or human", "machine or human", "ai or human", "chatbot", "voice bot",
-        "are you alive", "do you have feelings", "are you sentient"
-    ]
-    return any(k in t for k in identity_keywords)
 
 
 def detect_script_query_key(text: str) -> str | None:
@@ -2718,6 +2760,7 @@ class ScriptedMerideth(Agent):
 async def entrypoint(ctx: agents.JobContext):
     await ctx.connect()
 
+    # OpenAI client (used as fallback for random/generic queries)
     openai_api_key = os.getenv("OPENAI_API_KEY")
     openai_model = os.getenv("OPENAI_MODEL", "gpt-4o-mini")
     openai_client = AsyncOpenAI(api_key=openai_api_key) if openai_api_key else None
@@ -2829,11 +2872,14 @@ async def entrypoint(ctx: agents.JobContext):
                 ],
             )
             content = (resp.choices[0].message.content or "").strip()
+
+            # Cleanup phrases
             content = content.replace("As an AI", "As an assistant")
             content = content.replace("I'm an AI", "I'm an assistant")
             content = content.replace("I'm a language model", "I'm an assistant")
             content = content.replace("I'm a bot", "I'm an assistant")
 
+            # Remove any greeting that could slip through
             greeting_patterns = [
                 "Hi. This is Merideth calling on behalf of Galaxy Realtors in Dubai.",
                 "Hi, this is Merideth",
@@ -2848,13 +2894,14 @@ async def entrypoint(ctx: agents.JobContext):
 
             if not content or len(content) < 5:
                 return random.choice(fallback_responses)
-
             return content
+
         except Exception as e:
             print(f"OpenAI error: {e}")
             return random.choice(fallback_responses)
 
     async def answer_any_random_or_generic(user_text: str) -> bool:
+        # This is the OpenAI integration point for random/generic queries.
         if not looks_like_random_or_generic_query(user_text):
             return False
 
@@ -2867,6 +2914,7 @@ async def entrypoint(ctx: agents.JobContext):
 
         ans = await openai_answer(user_text, system)
         await say(ans)
+
         if system == SERVICE_Q_SYSTEM:
             session.userdata["state"] = "booking_ask"
         return True
@@ -2879,7 +2927,7 @@ async def entrypoint(ctx: agents.JobContext):
         room_input_options=RoomInputOptions(
             noise_cancellation=nc_plugin,
             close_on_disconnect=False,
-            participant_identity=None
+            participant_identity=None,
         ),
     )
 
@@ -2937,21 +2985,21 @@ async def entrypoint(ctx: agents.JobContext):
             elif is_identity_question(user_text) or detect_user_question_key(user_text):
                 await say("Of course.", delayed=False)
             else:
-                acknowledgments = ["Got it.", "I understand.", "Okay.", "Sure."]
-                await say(random.choice(acknowledgments), delayed=False)
+                await say(random.choice(["Got it.", "I understand.", "Okay.", "Sure."]), delayed=False)
 
-        # ✅ ONLY CHANGE: random greeting on every call/session
+        # Wait for user to speak first, then greet ONCE
         if state == "waiting_for_user" and not session.userdata.get("greeted", False):
             print("DEBUG: State is waiting_for_user - sending greeting")
             session.userdata["greeted"] = True
             session.userdata["state"] = "opening"
-            await say(random.choice(agent.GREETINGS))
+            await say("Hi, this is Merideth... how's your day going?")
             print("DEBUG: State changed to 'opening'")
             return
         elif state == "waiting_for_user" and session.userdata.get("greeted", False):
             session.userdata["state"] = "opening"
             print("DEBUG: Already greeted, skipping to opening state")
 
+        # Global refusal rules
         if session.userdata.get("refusal_count", 0) >= 3:
             await end_call(agent.REFUSALS["firm_no"])
             return
@@ -2981,16 +3029,19 @@ async def entrypoint(ctx: agents.JobContext):
             await say(agent.OBJECTIONS.get("not_interested", "I understand. Is there anything else I can help with?"))
             return
 
+        # Scripted user Qs
         uq = detect_user_question_key(user_text)
         if uq and uq in agent.USER_QUESTIONS:
             await say(agent.USER_QUESTIONS[uq])
             return
 
+        # Script FAQ keys
         qk = detect_script_query_key(user_text)
         if qk and qk in agent.FAQ:
             await say(agent.FAQ[qk])
             return
 
+        # Objection handling
         obj = detect_objection(user_text)
         if obj:
             if obj == "send_info":
@@ -3035,21 +3086,21 @@ async def entrypoint(ctx: agents.JobContext):
                     session.userdata["state"] = "booking_ask"
                 return
 
+        # OpenAI: answer ANY random/generic query
         answered = await answer_any_random_or_generic(user_text)
         if answered:
             return
 
+        # -------------------------
+        # STATE MACHINE
+        # -------------------------
+        state = session.userdata.get("state", "opening")
+
         if state == "opening":
             mood = detect_mood(user_text)
             response_parts = []
-
-            if mood in agent.MOOD_RESPONSES:
-                response_parts.append(agent.MOOD_RESPONSES[mood])
-            else:
-                response_parts.append("Glad to hear it.")
-
+            response_parts.append(agent.MOOD_RESPONSES.get(mood, "Glad to hear it."))
             response_parts.append(agent.MAIN_PITCH)
-
             await say(" ".join(response_parts))
             session.userdata["state"] = "qualify"
             return
@@ -3091,7 +3142,7 @@ async def entrypoint(ctx: agents.JobContext):
                 session.userdata["qualifying_idx"] = idx + 1
                 return
 
-            await say("You know what, our senior business consultant can show you exactly how this works on a quick Zoom call. Should I send the link by text or email?")
+            await say(agent.INTEREST_RESPONSE)
             session.userdata["state"] = "booking_send_method"
             return
 
@@ -3115,6 +3166,7 @@ async def entrypoint(ctx: agents.JobContext):
             session.userdata["state"] = "qualify"
             return
 
+        # Booking flow
         if state == "booking_send_method":
             await say("Perfect! What day and time works best for you?")
             session.userdata["state"] = "get_day_time"
@@ -3128,22 +3180,20 @@ async def entrypoint(ctx: agents.JobContext):
                 await say(f"How about {suggested_time} instead? Works better for our system.")
                 session.userdata["state"] = "confirm_rounded_time"
                 return
-            else:
-                session.userdata["booking_data"]["day_time"] = time_text
-                await say("Great! Let's get you scheduled. What's your timezone or location?")
+            session.userdata["booking_data"]["day_time"] = time_text
+            await say("Great! Let's get you scheduled. What's your timezone or location?")
             session.userdata["state"] = "get_timezone"
             return
 
         if state == "confirm_rounded_time":
             if is_yes(user_text):
-                session.userdata["booking_data"]["day_time"] = session.userdata["booking_data"]["suggested_time"]
+                session.userdata["booking_data"]["day_time"] = session.userdata["booking_data"].get("suggested_time")
                 await say("Great! Let's get you scheduled. What's your timezone or location?")
                 session.userdata["state"] = "get_timezone"
                 return
-            else:
-                await say("No problem. What time would work better for you?")
-                session.userdata["state"] = "get_day_time"
-                return
+            await say("No problem. What time would work better for you?")
+            session.userdata["state"] = "get_day_time"
+            return
 
         if state == "get_timezone":
             session.userdata["booking_data"]["timezone"] = user_text.strip()
@@ -3157,16 +3207,19 @@ async def entrypoint(ctx: agents.JobContext):
                 await say("Perfect! What's your best email?")
                 session.userdata["state"] = "get_email"
                 return
-            else:
-                session.userdata["booking_data"]["timezone"] = user_text.strip()
-                tz = session.userdata["booking_data"]["timezone"]
-                await say(f"Got it, that's {tz}. Right?")
-                return
+            session.userdata["booking_data"]["timezone"] = user_text.strip()
+            tz = session.userdata["booking_data"]["timezone"]
+            await say(f"Got it, that's {tz}. Right?")
+            return
 
         if state == "get_email":
             email = user_text.strip()
             session.userdata["booking_data"]["email"] = email
-            spelled_email = " ".join(c if c.isalnum() else f" {c} " for c in email).replace("@", " at ").replace(".", " dot ")
+            spelled_email = (
+                " ".join(c if c.isalnum() else f" {c} " for c in email)
+                .replace("@", " at ")
+                .replace(".", " dot ")
+            )
             await say(f"Let me confirm... that's {spelled_email}. Right?")
             session.userdata["state"] = "confirm_email"
             return
@@ -3176,12 +3229,15 @@ async def entrypoint(ctx: agents.JobContext):
                 await say("And your best phone number?")
                 session.userdata["state"] = "get_phone"
                 return
-            else:
-                session.userdata["booking_data"]["email"] = user_text.strip()
-                email = session.userdata["booking_data"]["email"]
-                spelled_email = " ".join(c if c.isalnum() else f" {c} " for c in email).replace("@", " at ").replace(".", " dot ")
-                await say(f"Thank you for clarifying. So that's {spelled_email}. Right?")
-                return
+            session.userdata["booking_data"]["email"] = user_text.strip()
+            email = session.userdata["booking_data"]["email"]
+            spelled_email = (
+                " ".join(c if c.isalnum() else f" {c} " for c in email)
+                .replace("@", " at ")
+                .replace(".", " dot ")
+            )
+            await say(f"Thank you for clarifying. So that's {spelled_email}. Right?")
+            return
 
         if state == "get_phone":
             phone = user_text.strip()
@@ -3196,12 +3252,11 @@ async def entrypoint(ctx: agents.JobContext):
                 await say("Great! And your full name?")
                 session.userdata["state"] = "get_name"
                 return
-            else:
-                session.userdata["booking_data"]["phone"] = user_text.strip()
-                phone = session.userdata["booking_data"]["phone"]
-                spelled_phone = " ".join(c if c.isdigit() else ", " for c in phone)
-                await say(f"Thank you for the correction. So that's {spelled_phone}. Right?")
-                return
+            session.userdata["booking_data"]["phone"] = user_text.strip()
+            phone = session.userdata["booking_data"]["phone"]
+            spelled_phone = " ".join(c if c.isdigit() else ", " for c in phone)
+            await say(f"Thank you for the correction. So that's {spelled_phone}. Right?")
+            return
 
         if state == "get_name":
             session.userdata["booking_data"]["name"] = user_text.strip()
@@ -3210,8 +3265,6 @@ async def entrypoint(ctx: agents.JobContext):
             session.userdata["state"] = "confirm_name"
             return
 
-        # ✅ NOTE: This block had broken indentation in your pasted code.
-        # Fixing indentation is required for the code to run; no behavior change intended.
         if state == "confirm_name":
             if is_yes(user_text):
                 bd = session.userdata["booking_data"]
@@ -3221,11 +3274,10 @@ async def entrypoint(ctx: agents.JobContext):
                 )
                 session.userdata["state"] = "final_questions"
                 return
-            else:
-                session.userdata["booking_data"]["name"] = user_text.strip()
-                name = session.userdata["booking_data"]["name"]
-                await say(f"Thank you. So that's {name}. Right?")
-                return
+            session.userdata["booking_data"]["name"] = user_text.strip()
+            name = session.userdata["booking_data"]["name"]
+            await say(f"Thank you. So that's {name}. Right?")
+            return
 
         if state == "final_questions":
             if is_yes(user_text) or any(k in normalize(user_text) for k in ["question", "ask"]):
@@ -3234,10 +3286,9 @@ async def entrypoint(ctx: agents.JobContext):
                     return
                 await say("Of course, what would you like to know?")
                 return
-            else:
-                await say("Is there anything else I can help with before we wrap up?")
-                session.userdata["state"] = "pre_closing"
-                return
+            await say("Is there anything else I can help with before we wrap up?")
+            session.userdata["state"] = "pre_closing"
+            return
 
         if state == "pre_closing":
             if is_yes(user_text) or any(k in normalize(user_text) for k in ["question", "ask", "yes"]):
@@ -3247,15 +3298,15 @@ async def entrypoint(ctx: agents.JobContext):
                     return
                 await say("Of course, what would you like to know?")
                 return
-            else:
-                await say("Thank you so much for your time! talk soon! Goodbye!")
-                session.userdata["state"] = "closing"
-                return
+            await say("Thank you so much for your time! talk soon! Goodbye!")
+            session.userdata["state"] = "closing"
+            return
 
         if state == "closing":
             await end_call("Thank you so much for your time! talk soon! Goodbye!")
             return
 
+        # Send info path
         if state == "get_email_for_info":
             session.userdata["booking_data"]["email"] = user_text.strip()
             email = session.userdata["booking_data"]["email"]
@@ -3266,15 +3317,18 @@ async def entrypoint(ctx: agents.JobContext):
         if state == "confirm_email_for_info":
             if is_yes(user_text):
                 email = session.userdata["booking_data"].get("email", "")
-                await say(f"Great. I'll send over the information to {email} shortly. If you have any questions afterward, feel free to reach out. Have a great day!")
+                await say(
+                    f"Great. I'll send over the information to {email} shortly. "
+                    "If you have any questions afterward, feel free to reach out. Have a great day!"
+                )
                 session.userdata["state"] = "closing"
                 return
-            else:
-                session.userdata["booking_data"]["email"] = user_text.strip()
-                email = session.userdata["booking_data"]["email"]
-                await say(f"Thank you for clarifying. So that's {email}. Is that correct?")
-                return
+            session.userdata["booking_data"]["email"] = user_text.strip()
+            email = session.userdata["booking_data"]["email"]
+            await say(f"Thank you for clarifying. So that's {email}. Is that correct?")
+            return
 
+        # Fallback
         await say("Got it. Are you looking to save time, or get more leads right now?")
         session.userdata["state"] = "qualify"
 
@@ -3291,6 +3345,7 @@ if __name__ == "__main__":
         num_idle_processes=3,
     )
     agents.cli.run_app(worker_options)
+
 
 
 
