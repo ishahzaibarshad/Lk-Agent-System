@@ -1810,9 +1810,13 @@ from contextlib import asynccontextmanager
 from typing import Optional
 
 from dotenv import load_dotenv
-from fastapi import FastAPI, WebSocket, WebSocketDisconnect, Request, HTTPException
-from fastapi.responses import Response
+from fastapi import FastAPI, WebSocket, WebSocketDisconnect, Request, HTTPException, Depends
+from fastapi.responses import Response, FileResponse
+from fastapi.staticfiles import StaticFiles
+from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
+from sqlalchemy.orm import Session
+import httpx
 
 from livekit import agents
 from livekit.agents import AgentSession, Agent, RoomInputOptions
@@ -1823,6 +1827,10 @@ from openai import AsyncOpenAI
 from config.settings import settings
 from utils.logger import setup_logging
 from utils.twilio_service import TwilioOutboundService, TwilioMediaStreamHandler
+
+# Database and API routes
+from database.connection import init_db, get_db
+from api.routes import auth, agents, contacts, calls, bookings, dashboard
 
 # -----------------------------------------------------------------------------
 # Setup
@@ -2096,6 +2104,13 @@ async def lifespan(app: FastAPI):
     logger.info("Starting NSOL BPO Cold Calling Assistant - Merideth")
     logger.info(f"Debug mode: {settings.DEBUG}")
 
+    # Initialize database
+    try:
+        init_db()
+        logger.info("Database initialized successfully")
+    except Exception as e:
+        logger.warning(f"Database initialization failed: {e}")
+
     # Initialize Twilio service
     try:
         twilio_service = TwilioOutboundService()
@@ -2113,6 +2128,31 @@ app = FastAPI(
     version="1.0.0",
     lifespan=lifespan,
 )
+
+# CORS middleware
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+# Include API routers
+app.include_router(auth.router)
+app.include_router(agents.router)
+app.include_router(contacts.router)
+app.include_router(calls.router)
+app.include_router(bookings.router)
+app.include_router(dashboard.router)
+
+# Mount static files for frontend
+app.mount("/frontend", StaticFiles(directory="frontend"), name="frontend")
+
+# Dashboard redirect
+@app.get("/dashboard")
+async def redirect_to_dashboard():
+    return FileResponse("frontend/dashboard.html")
 
 # Initialize Twilio service (will be set after app startup)
 twilio_service: Optional[TwilioOutboundService] = None
@@ -2138,16 +2178,17 @@ async def metrics():
 # -----------------------------------------------------------------------------
 class OutboundCallRequest(BaseModel):
     """Request model for placing outbound calls"""
-    to_number: str = Field(..., description="Phone number to call in E.164 format (e.g., +14155551234)")
+    agent_id: int = Field(..., description="ID of the agent to use for the call")
+    contact_id: int = Field(..., description="ID of the contact to call")
+    ngrok_url: str = Field(..., description="Your Ngrok public URL (e.g., https://xxxx.ngrok.io)")
     room_name: Optional[str] = Field(None, description="Optional LiveKit room name (auto-generated if not provided)")
-    webhook_base_url: str = Field(..., description="Your public base URL (e.g., https://your-domain.com)")
 
     class Config:
         json_schema_extra = {
             "example": {
-                "to_number": "+14155551234",
-                "room_name": "call-123",
-                "webhook_base_url": "https://your-domain.ngrok.io"
+                "agent_id": 1,
+                "contact_id": 1,
+                "ngrok_url": "https://xxxx.ngrok.io"
             }
         }
 
@@ -2166,9 +2207,9 @@ class OutboundCallResponse(BaseModel):
 # Outbound Calling API Endpoints
 # -----------------------------------------------------------------------------
 @app.post("/api/outbound/call", response_model=OutboundCallResponse)
-async def place_outbound_call(request: OutboundCallRequest):
+async def place_outbound_call(request: OutboundCallRequest, db: Session = Depends(get_db)):
     """
-    Place an outbound call using Twilio Programmable Voice + Media Streams
+    Place an outbound call using Twilio Programmable Voice + Media Streams + LiveKit Agent
     """
     if not twilio_service:
         raise HTTPException(
@@ -2177,21 +2218,50 @@ async def place_outbound_call(request: OutboundCallRequest):
         )
 
     try:
+        # Fetch contact from database
+        from models.database import Contact, Agent as DBAgent, Call
+        contact = db.query(Contact).filter(Contact.id == request.contact_id).first()
+        if not contact:
+            raise HTTPException(status_code=404, detail="Contact not found")
+        
+        # Fetch agent from database
+        agent = db.query(DBAgent).filter(DBAgent.id == request.agent_id).first()
+        if not agent:
+            raise HTTPException(status_code=404, detail="Agent not found")
+
         room_name = request.room_name or f"call-{int(time.time())}"
+        webhook_base_url = request.ngrok_url.rstrip('/')
 
-        webhook_url = f"{request.webhook_base_url.rstrip('/')}/twilio/webhook?room_name={room_name}"
-        status_callback_url = f"{request.webhook_base_url.rstrip('/')}/twilio/status"
+        webhook_url = f"{webhook_base_url}/twilio/webhook?room_name={room_name}&agent_id={agent.id}"
+        status_callback_url = f"{webhook_base_url}/twilio/status"
 
+        # Create call record in database
+        new_call = Call(
+            agent_id=request.agent_id,
+            contact_id=request.contact_id,
+            status="initiated"
+        )
+        db.add(new_call)
+        db.commit()
+        db.refresh(new_call)
+
+        # Place the call via Twilio
         result = twilio_service.place_call(
-            to_number=request.to_number,
+            to_number=contact.phone,
             webhook_url=webhook_url,
             status_callback_url=status_callback_url
         )
 
         if result["success"]:
-            websocket_url = (
-                f"wss://{request.webhook_base_url.replace('https://', '').replace('http://', '').rstrip('/')}/twilio/media"
-            )
+            # Update call record with Twilio SID
+            new_call.call_sid = result["call_sid"]
+            new_call.status = "in_progress"
+            db.commit()
+
+            websocket_url = f"wss://{webhook_base_url.replace('https://', '').replace('http://', '')}/twilio/media"
+            
+            logger.info(f"Call initiated - SID: {result['call_sid']}, Contact: {contact.name}, Agent: {agent.name}")
+            
             return OutboundCallResponse(
                 success=True,
                 call_sid=result["call_sid"],
@@ -2199,11 +2269,61 @@ async def place_outbound_call(request: OutboundCallRequest):
                 room_name=room_name,
                 websocket_url=websocket_url
             )
-        return OutboundCallResponse(success=False, error=result.get("error", "Unknown error"))
+        else:
+            # Update call record as failed - return 400 so frontend can show Twilio error
+            new_call.status = "failed"
+            db.commit()
+            err = result.get("error", "Unknown error")
+            logger.warning(f"Call failed for {contact.phone}: {err}")
+            raise HTTPException(status_code=400, detail=err)
 
+    except HTTPException:
+        raise
     except Exception as e:
         logger.error(f"Error in place_outbound_call: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get("/api/twilio/status")
+async def twilio_status():
+    """
+    Check if Twilio is configured and ready for outbound calls.
+    """
+    configured = twilio_service is not None
+    from_number = ""
+    if configured and twilio_service:
+        from_number = getattr(twilio_service, "from_number", "") or ""
+        if len(from_number) > 4:
+            from_number = from_number[:2] + "****" + from_number[-2:]
+    return {
+        "configured": configured,
+        "from_number_masked": from_number,
+        "message": "Twilio ready for outbound calls" if configured else "Twilio not configured. Set TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN, TWILIO_FROM_NUMBER in .env"
+    }
+
+
+@app.get("/api/ngrok-url")
+async def get_ngrok_url():
+    """
+    Return Ngrok public URL for webhooks. Auto-detected from Ngrok local API or from .env.
+    No need to enter URL every time when making calls.
+    """
+    if settings.NGROK_BASE_URL:
+        return {"url": settings.NGROK_BASE_URL.rstrip("/"), "source": "env"}
+
+    try:
+        async with httpx.AsyncClient(timeout=2.0) as client:
+            r = await client.get("http://127.0.0.1:4040/api/tunnels")
+            if r.status_code == 200:
+                data = r.json()
+                tunnels = data.get("tunnels") or []
+                for t in tunnels:
+                    pub = (t.get("public_url") or "").strip()
+                    if pub.startswith("https://"):
+                        return {"url": pub.rstrip("/"), "source": "ngrok_api"}
+    except Exception:
+        pass
+    return {"url": None, "message": "Ngrok not running or set NGROK_BASE_URL in .env"}
 
 
 @app.post("/twilio/webhook")

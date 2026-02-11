@@ -1,0 +1,139 @@
+========================================
+WHY CALLS FAIL - TROUBLESHOOTING GUIDE
+========================================
+
+When you click "Call" and it fails, the app now shows the exact error from Twilio.
+Use that message to find the cause below.
+
+========================================
+1. TWILIO TRIAL ACCOUNT - UNVERIFIED NUMBER
+========================================
+
+Error message often contains:
+  "unverified"
+  "Trial accounts cannot"
+  "verified caller"
+
+CAUSE:
+  Twilio trial accounts can ONLY call phone numbers that you have verified
+  in the Twilio Console. Your friend's number is not verified.
+
+FIX:
+  A) Verify your friend's number:
+     1. Go to: https://console.twilio.com
+     2. Phone Numbers -> Manage -> Verified Caller IDs
+     3. Add your friend's number (+country code + number)
+     4. Twilio will send a code by SMS or call; enter it to verify.
+     5. Try the call again from the dashboard.
+
+  B) Or upgrade Twilio account to full (paid) so you can call any number
+     without verifying each one.
+
+========================================
+2. INVALID PHONE NUMBER FORMAT
+========================================
+
+Error may say:
+  "Invalid 'To' Phone Number"
+  "phone number is not a valid"
+
+CAUSE:
+  Number must be in E.164 format: +[country code][number], no spaces/dashes.
+
+FIX:
+  - USA:  +14155551234  (not 415-555-1234 or 4155551234)
+  - UK:   +447911123456
+  - Pakistan: +923001234567
+  Edit the contact and set the phone field to E.164 format.
+
+========================================
+3. NGROK URL WRONG OR NOT REACHABLE
+========================================
+
+Symptom:
+  Call might show "initiated" but then fail, or Twilio error about
+  "Unable to connect" / webhook timeout.
+
+CAUSE:
+  Twilio needs to reach your server at the Ngrok URL to get TwiML and
+  connect the media stream. If the URL is wrong or Ngrok is stopped,
+  Twilio cannot complete the call.
+
+FIX:
+  - Ensure Ngrok is running:  ngrok http 8000
+  - Use the HTTPS URL from the Ngrok window (e.g. https://xxx.ngrok-free.app)
+  - Do not use http:// or a URL that points to another machine
+  - If you use .env, set NGROK_BASE_URL to that exact HTTPS URL and restart
+    the FastAPI server
+
+========================================
+4. TWILIO "FROM" NUMBER NOT VALID
+========================================
+
+Error may say:
+  "The 'From' number is not a valid phone number"
+
+CAUSE:
+  TWILIO_FROM_NUMBER in .env must be a number you own in Twilio
+  (e.g. a Twilio number you bought or a verified number for trial).
+
+FIX:
+  - In Twilio Console: Phone Numbers -> Manage -> Active Numbers
+  - Copy the number in E.164 form (e.g. +14243952905)
+  - Set in .env:  TWILIO_FROM_NUMBER=+14243952905
+  - Restart the backend.
+
+========================================
+5. TWILIO CREDENTIALS INVALID
+========================================
+
+Error may say:
+  "Authenticate"
+  "invalid credentials"
+  "20003" (Twilio error code)
+
+CAUSE:
+  TWILIO_ACCOUNT_SID or TWILIO_AUTH_TOKEN in .env is wrong or expired.
+
+FIX:
+  - Twilio Console -> Account -> API keys & tokens
+  - Copy Account SID and Auth Token into .env
+  - Restart the backend.
+
+========================================
+6. CALL CONNECTS BUT NO VOICE / DROPS
+========================================
+
+Symptom:
+  Your friend's phone rings and they answer, but no voice or call drops.
+
+CAUSE:
+  - Twilio is trying to connect to your server's WebSocket (/twilio/media)
+    but the connection fails or is blocked.
+  - Or the LiveKit agent / media handler is not running or errors.
+
+FIX:
+  - Ensure FastAPI server is running and Ngrok URL is correct.
+  - Ensure no firewall is blocking Ngrok or port 8000.
+  - For full AI voice, run the LiveKit agent:  python main.py
+  - Check server logs for errors when the call connects.
+
+========================================
+QUICK CHECKLIST
+========================================
+
+  [ ] Contact's phone number is in E.164 format (+country + number)
+  [ ] Twilio: If trial, your friend's number is in Verified Caller IDs
+  [ ] .env has correct TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN, TWILIO_FROM_NUMBER
+  [ ] Ngrok is running and the dashboard is using that HTTPS URL
+  [ ] Backend (FastAPI) is running and reachable
+
+========================================
+SEE THE EXACT ERROR
+========================================
+
+After the fix, when a call fails the dashboard will show the exact Twilio
+error message. Use that text to search in this file or in Twilio docs:
+  https://www.twilio.com/docs/api/errors
+
+========================================

@@ -1,7 +1,10 @@
 import os
+from pathlib import Path
 from dotenv import load_dotenv
 
-load_dotenv()
+# Load .env from project root (parent of config/)
+_env_path = Path(__file__).resolve().parent.parent / ".env"
+load_dotenv(dotenv_path=_env_path)
 
 
 class Settings:
@@ -44,17 +47,23 @@ class Settings:
     OPENAI_MODEL: str = os.getenv("OPENAI_MODEL", "gpt-4o-mini")
     
     # Twilio Configuration (for outbound calls)
-    TWILIO_ACCOUNT_SID: str = os.getenv("TWILIO_ACCOUNT_SID", "")
-    TWILIO_AUTH_TOKEN: str = os.getenv("TWILIO_AUTH_TOKEN", "")
-    TWILIO_API_KEY_SID: str = os.getenv("TWILIO_API_KEY_SID", "")
-    TWILIO_API_KEY_SECRET: str = os.getenv("TWILIO_API_KEY_SECRET", "")
-    TWILIO_FROM_NUMBER: str = os.getenv("TWILIO_FROM_NUMBER", "")
+    TWILIO_ACCOUNT_SID: str = (os.getenv("TWILIO_ACCOUNT_SID") or "").strip()
+    TWILIO_AUTH_TOKEN: str = (os.getenv("TWILIO_AUTH_TOKEN") or "").strip()
+    TWILIO_API_KEY_SID: str = (os.getenv("TWILIO_API_KEY_SID") or "").strip()
+    TWILIO_API_KEY_SECRET: str = (os.getenv("TWILIO_API_KEY_SECRET") or "").strip()
+    TWILIO_FROM_NUMBER: str = (os.getenv("TWILIO_FROM_NUMBER") or "").strip()
     LIVEKIT_SIP_URI: str = os.getenv("LIVEKIT_SIP_URI", "")
+    # Optional: set in .env for demo so frontend never prompts for Ngrok URL
+    NGROK_BASE_URL: str = (os.getenv("NGROK_BASE_URL") or "").strip()
     
     # App Configuration
     DEBUG: bool = os.getenv("DEBUG", "true").lower() == "true"
     HOST: str = os.getenv("HOST", "0.0.0.0")
     PORT: int = int(os.getenv("PORT", "8000"))
+    
+    # Authentication
+    SECRET_KEY: str = os.getenv("SECRET_KEY", "nsol-bpo-secret-key-change-in-production-2024")
+    ACCESS_TOKEN_EXPIRE_MINUTES: int = int(os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES", "10080"))  # 7 days
     
     # Monitoring
     METRICS_PORT: int = int(os.getenv("METRICS_PORT", "9090"))

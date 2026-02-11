@@ -1,0 +1,11 @@
+name,phone,email,company,notes,tags,timezone
+John Smith,+14155551234,john.smith@acmecorp.com,Acme Corporation,Interested in BPO services,hot-lead;decision-maker,America/New_York
+Sarah Johnson,+14155552345,sarah.j@techstart.io,TechStart Inc,Requested callback next week,warm-lead,America/Los_Angeles
+Michael Chen,+14155553456,m.chen@globalventures.com,Global Ventures,CFO - Budget approval needed,decision-maker;enterprise,America/Chicago
+Emily Rodriguez,+14155554567,emily.r@innovatetech.com,Innovate Tech,Looking for customer service outsourcing,warm-lead,America/Denver
+David Wilson,+14155555678,david.wilson@retailpro.com,Retail Pro LLC,Needs 24/7 support solution,hot-lead;urgent,America/New_York
+Lisa Anderson,+14155556789,l.anderson@medihealth.org,MediHealth,Healthcare BPO requirements,qualified;callback,America/Phoenix
+James Martinez,+14155557890,james.m@financecorp.com,Finance Corp,Compliance concerns - follow up,enterprise,America/New_York
+Jennifer Taylor,+14155558901,j.taylor@ecommhub.com,EcommHub,Seasonal support needed,warm-lead,America/Los_Angeles
+Robert Brown,+14155559012,r.brown@logistics360.com,Logistics 360,International support requirements,enterprise,America/Chicago
+Amanda White,+14155550123,amanda.w@startupxyz.com,Startup XYZ,Small team - exploring options,cold-lead,America/Los_Angeles

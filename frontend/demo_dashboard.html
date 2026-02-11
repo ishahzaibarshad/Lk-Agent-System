@@ -1,0 +1,799 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>NSOL BPO - Demo Dashboard</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        .tab-content { display: none; }
+        .tab-content.active { display: block; }
+        .modal { display: none; }
+        .modal.active { display: flex; }
+        .demo-banner {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+        }
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: .8; }
+        }
+    </style>
+</head>
+<body class="bg-gray-50">
+    <!-- Demo Mode Banner -->
+    <div class="demo-banner text-white text-center py-2 px-4 font-bold">
+        🎬 DEMO MODE - Showcasing Full Platform Capabilities
+    </div>
+
+    <!-- Header -->
+    <header class="bg-white shadow-md">
+        <div class="container mx-auto px-6 py-4 flex justify-between items-center">
+            <h1 class="text-2xl font-bold text-gray-800">📞 NSOL BPO - Enterprise Dashboard</h1>
+            <div class="flex items-center gap-4">
+                <a href="/frontend/dashboard.html" class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700">
+                    Back to Main Dashboard
+                </a>
+                <span class="text-gray-600">Demo User</span>
+                <button onclick="alert('Demo mode - logout disabled')" class="px-4 py-2 bg-gray-300 text-gray-700 rounded-lg">
+                    Logout
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <!-- Navigation -->
+    <nav class="bg-gray-800 text-white">
+        <div class="container mx-auto px-6">
+            <div class="flex space-x-1 overflow-x-auto">
+                <button onclick="showTab('dashboard')" class="tab-btn px-6 py-3 hover:bg-gray-700 rounded-t-lg whitespace-nowrap" data-tab="dashboard">Dashboard</button>
+                <button onclick="showTab('calls')" class="tab-btn px-6 py-3 hover:bg-gray-700 rounded-t-lg whitespace-nowrap" data-tab="calls">Calls</button>
+                <button onclick="showTab('contacts')" class="tab-btn px-6 py-3 hover:bg-gray-700 rounded-t-lg whitespace-nowrap" data-tab="contacts">Contacts</button>
+                <button onclick="showTab('bookings')" class="tab-btn px-6 py-3 hover:bg-gray-700 rounded-t-lg whitespace-nowrap" data-tab="bookings">Bookings (Demo)</button>
+                <button onclick="showTab('leads')" class="tab-btn px-6 py-3 hover:bg-gray-700 rounded-t-lg whitespace-nowrap" data-tab="leads">Leads (Demo)</button>
+                <button onclick="showTab('analytics')" class="tab-btn px-6 py-3 hover:bg-gray-700 rounded-t-lg whitespace-nowrap" data-tab="analytics">Analytics (Demo)</button>
+                <button onclick="showTab('billing')" class="tab-btn px-6 py-3 hover:bg-gray-700 rounded-t-lg whitespace-nowrap" data-tab="billing">Billing (Demo)</button>
+                <button onclick="showTab('admin')" class="tab-btn px-6 py-3 hover:bg-gray-700 rounded-t-lg whitespace-nowrap" data-tab="admin">Admin (Demo)</button>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Main Content -->
+    <main class="container mx-auto px-6 py-8">
+        <!-- Dashboard Tab -->
+        <div id="dashboard" class="tab-content active">
+            <h2 class="text-3xl font-bold mb-6 bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">Dashboard Overview</h2>
+            
+            <!-- Stats Grid -->
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+                <div class="bg-gradient-to-br from-blue-500 to-blue-600 text-white p-6 rounded-lg shadow-lg">
+                    <div class="text-sm opacity-90">Total Calls Today</div>
+                    <div class="text-4xl font-bold">247</div>
+                    <div class="text-xs mt-2 opacity-75">↑ 23% from yesterday</div>
+                </div>
+                <div class="bg-gradient-to-br from-green-500 to-green-600 text-white p-6 rounded-lg shadow-lg">
+                    <div class="text-sm opacity-90">Active Contacts</div>
+                    <div class="text-4xl font-bold">1,834</div>
+                    <div class="text-xs mt-2 opacity-75">↑ 12% this month</div>
+                </div>
+                <div class="bg-gradient-to-br from-purple-500 to-purple-600 text-white p-6 rounded-lg shadow-lg">
+                    <div class="text-sm opacity-90">Conversion Rate</div>
+                    <div class="text-4xl font-bold">34.2%</div>
+                    <div class="text-xs mt-2 opacity-75">↑ 5.2% improvement</div>
+                </div>
+                <div class="bg-gradient-to-br from-orange-500 to-orange-600 text-white p-6 rounded-lg shadow-lg">
+                    <div class="text-sm opacity-90">Bookings This Week</div>
+                    <div class="text-4xl font-bold">89</div>
+                    <div class="text-xs mt-2 opacity-75">Target: 100</div>
+                </div>
+            </div>
+
+            <!-- Charts -->
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
+                <div class="bg-white p-6 rounded-lg shadow-md">
+                    <h3 class="text-lg font-bold mb-4">Call Volume (Last 7 Days)</h3>
+                    <canvas id="callVolumeChart"></canvas>
+                </div>
+                <div class="bg-white p-6 rounded-lg shadow-md">
+                    <h3 class="text-lg font-bold mb-4">Conversion Funnel</h3>
+                    <canvas id="conversionChart"></canvas>
+                </div>
+            </div>
+
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
+                <div class="bg-white p-6 rounded-lg shadow-md">
+                    <h3 class="text-lg font-bold mb-4">Call Outcomes Distribution</h3>
+                    <canvas id="outcomesChart"></canvas>
+                </div>
+                <div class="bg-white p-6 rounded-lg shadow-md">
+                    <h3 class="text-lg font-bold mb-4">Peak Calling Hours</h3>
+                    <canvas id="peakHoursChart"></canvas>
+                </div>
+            </div>
+
+            <!-- Quick Actions -->
+            <div class="bg-white p-6 rounded-lg shadow-md">
+                <h3 class="text-lg font-bold mb-4">Quick Actions</h3>
+                <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+                    <button onclick="showTab('contacts')" class="bg-white/20 hover:bg-white/30 backdrop-blur-sm px-6 py-4 rounded-lg text-left transition border-2 border-blue-200 hover:border-blue-400">
+                        <div class="text-3xl mb-2">📞</div>
+                        <div class="font-bold">Make a Call</div>
+                        <div class="text-sm opacity-90">Start calling leads now</div>
+                    </button>
+                    <button onclick="showImportCSV()" class="bg-white/20 hover:bg-white/30 backdrop-blur-sm px-6 py-4 rounded-lg text-left transition border-2 border-green-200 hover:border-green-400">
+                        <div class="text-3xl mb-2">📁</div>
+                        <div class="font-bold">Import Contacts</div>
+                        <div class="text-sm opacity-90">Upload CSV file</div>
+                    </button>
+                    <button onclick="showTab('calls')" class="bg-white/20 hover:bg-white/30 backdrop-blur-sm px-6 py-4 rounded-lg text-left transition border-2 border-purple-200 hover:border-purple-400">
+                        <div class="text-3xl mb-2">📊</div>
+                        <div class="font-bold">View Call History</div>
+                        <div class="text-sm opacity-90">See all calls made</div>
+                    </button>
+                    <button onclick="demoFeature('Export Report')" class="bg-white/20 hover:bg-white/30 backdrop-blur-sm px-6 py-4 rounded-lg text-left transition border-2 border-orange-200 hover:border-orange-400">
+                        <div class="text-3xl mb-2">📈</div>
+                        <div class="font-bold">Export Report</div>
+                        <div class="text-sm opacity-90">Generate analytics</div>
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Calls Tab (WORKING) -->
+        <div id="calls" class="tab-content">
+            <div class="flex justify-between items-center mb-6">
+                <h2 class="text-2xl font-bold">Call History</h2>
+                <div class="flex gap-2">
+                    <button onclick="filterCalls('all')" class="px-3 py-1 bg-gray-200 hover:bg-gray-300 rounded">All</button>
+                    <button onclick="filterCalls('completed')" class="px-3 py-1 bg-green-100 hover:bg-green-200 rounded">Completed</button>
+                    <button onclick="filterCalls('failed')" class="px-3 py-1 bg-red-100 hover:bg-red-200 rounded">Failed</button>
+                </div>
+            </div>
+            <div id="callsList" class="space-y-4"></div>
+        </div>
+
+        <!-- Contacts Tab (WORKING) -->
+        <div id="contacts" class="tab-content">
+            <div class="flex justify-between items-center mb-6">
+                <h2 class="text-2xl font-bold">Contacts</h2>
+                <div class="flex gap-2">
+                    <button onclick="showImportCSV()" class="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700">
+                        📁 Import CSV
+                    </button>
+                    <button onclick="showCreateContact()" class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700">
+                        + New Contact
+                    </button>
+                </div>
+            </div>
+            <div id="contactsList" class="bg-white rounded-lg shadow-md overflow-hidden"></div>
+        </div>
+
+        <!-- Bookings Tab (Demo UI) -->
+        <div id="bookings" class="tab-content">
+            <div class="bg-yellow-100 border-l-4 border-yellow-500 p-4 mb-6">
+                <p class="text-yellow-700"><strong>Demo Feature:</strong> Bookings management with calendar integration, automated reminders, and Zoom/Meet links.</p>
+            </div>
+            <h2 class="text-2xl font-bold mb-6">Bookings & Appointments</h2>
+            <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                <div class="bg-white p-6 rounded-lg shadow-md">
+                    <div class="text-sm text-gray-600 mb-2">Tomorrow, 10:00 AM</div>
+                    <h3 class="font-bold text-lg mb-2">Demo Call - Acme Corp</h3>
+                    <div class="text-sm text-gray-600 mb-4">
+                        <div>Contact: John Smith</div>
+                        <div>Duration: 30 minutes</div>
+                    </div>
+                    <button onclick="demoFeature('Join Meeting')" class="w-full px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700">Join Zoom</button>
+                </div>
+                <div class="bg-white p-6 rounded-lg shadow-md">
+                    <div class="text-sm text-gray-600 mb-2">Friday, 2:00 PM</div>
+                    <h3 class="font-bold text-lg mb-2">Follow-up - TechStart Inc</h3>
+                    <div class="text-sm text-gray-600 mb-4">
+                        <div>Contact: Sarah Johnson</div>
+                        <div>Duration: 45 minutes</div>
+                    </div>
+                    <button onclick="demoFeature('Reschedule')" class="w-full px-4 py-2 bg-gray-300 text-gray-700 rounded hover:bg-gray-400">Reschedule</button>
+                </div>
+                <div class="bg-white p-6 rounded-lg shadow-md">
+                    <div class="text-sm text-gray-600 mb-2">Next Monday, 11:30 AM</div>
+                    <h3 class="font-bold text-lg mb-2">Consultation - Global Ventures</h3>
+                    <div class="text-sm text-gray-600 mb-4">
+                        <div>Contact: Michael Chen</div>
+                        <div>Duration: 60 minutes</div>
+                    </div>
+                    <button onclick="demoFeature('Send Reminder')" class="w-full px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700">Send Reminder</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Leads Tab (Demo UI) -->
+        <div id="leads" class="tab-content">
+            <div class="bg-yellow-100 border-l-4 border-yellow-500 p-4 mb-6">
+                <p class="text-yellow-700"><strong>Demo Feature:</strong> Advanced lead scoring, pipeline management, and AI-powered qualification.</p>
+            </div>
+            <h2 class="text-2xl font-bold mb-6">Lead Pipeline</h2>
+            <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
+                <div class="bg-white p-4 rounded-lg shadow-md">
+                    <h3 class="font-bold mb-4 text-blue-600">New (45)</h3>
+                    <div class="space-y-2">
+                        <div class="p-3 bg-gray-50 rounded cursor-pointer hover:bg-gray-100" onclick="demoFeature('View Lead')">
+                            <div class="font-semibold">Retail Pro LLC</div>
+                            <div class="text-sm text-gray-600">Score: 85/100 🔥</div>
+                        </div>
+                        <div class="p-3 bg-gray-50 rounded cursor-pointer hover:bg-gray-100" onclick="demoFeature('View Lead')">
+                            <div class="font-semibold">MediHealth</div>
+                            <div class="text-sm text-gray-600">Score: 72/100</div>
+                        </div>
+                    </div>
+                </div>
+                <div class="bg-white p-4 rounded-lg shadow-md">
+                    <h3 class="font-bold mb-4 text-yellow-600">Contacted (32)</h3>
+                    <div class="space-y-2">
+                        <div class="p-3 bg-gray-50 rounded cursor-pointer hover:bg-gray-100" onclick="demoFeature('View Lead')">
+                            <div class="font-semibold">Finance Corp</div>
+                            <div class="text-sm text-gray-600">Last call: 2 days ago</div>
+                        </div>
+                        <div class="p-3 bg-gray-50 rounded cursor-pointer hover:bg-gray-100" onclick="demoFeature('View Lead')">
+                            <div class="font-semibold">EcommHub</div>
+                            <div class="text-sm text-gray-600">Last call: 5 days ago</div>
+                        </div>
+                    </div>
+                </div>
+                <div class="bg-white p-4 rounded-lg shadow-md">
+                    <h3 class="font-bold mb-4 text-green-600">Qualified (18)</h3>
+                    <div class="space-y-2">
+                        <div class="p-3 bg-gray-50 rounded cursor-pointer hover:bg-gray-100" onclick="demoFeature('View Lead')">
+                            <div class="font-semibold">Logistics 360</div>
+                            <div class="text-sm text-gray-600">Meeting scheduled</div>
+                        </div>
+                        <div class="p-3 bg-gray-50 rounded cursor-pointer hover:bg-gray-100" onclick="demoFeature('View Lead')">
+                            <div class="font-semibold">Startup XYZ</div>
+                            <div class="text-sm text-gray-600">Proposal sent</div>
+                        </div>
+                    </div>
+                </div>
+                <div class="bg-white p-4 rounded-lg shadow-md">
+                    <h3 class="font-bold mb-4 text-purple-600">Closed (12)</h3>
+                    <div class="space-y-2">
+                        <div class="p-3 bg-gray-50 rounded cursor-pointer hover:bg-gray-100" onclick="demoFeature('View Lead')">
+                            <div class="font-semibold">Acme Corporation</div>
+                            <div class="text-sm text-green-600">✅ Won - $50K</div>
+                        </div>
+                        <div class="p-3 bg-gray-50 rounded cursor-pointer hover:bg-gray-100" onclick="demoFeature('View Lead')">
+                            <div class="font-semibold">TechStart Inc</div>
+                            <div class="text-sm text-green-600">✅ Won - $35K</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Analytics Tab (Demo UI) -->
+        <div id="analytics" class="tab-content">
+            <div class="bg-yellow-100 border-l-4 border-yellow-500 p-4 mb-6">
+                <p class="text-yellow-700"><strong>Demo Feature:</strong> Real-time analytics, custom reports, and AI-powered insights.</p>
+            </div>
+            <h2 class="text-2xl font-bold mb-6">Advanced Analytics</h2>
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+                <div class="bg-white p-6 rounded-lg shadow-md">
+                    <h3 class="text-lg font-bold mb-4">Performance Metrics</h3>
+                    <div class="space-y-4">
+                        <div>
+                            <div class="flex justify-between mb-1">
+                                <span class="text-sm font-medium">Call Success Rate</span>
+                                <span class="text-sm font-medium text-green-600">87%</span>
+                            </div>
+                            <div class="w-full bg-gray-200 rounded-full h-2">
+                                <div class="bg-green-600 h-2 rounded-full" style="width: 87%"></div>
+                            </div>
+                        </div>
+                        <div>
+                            <div class="flex justify-between mb-1">
+                                <span class="text-sm font-medium">Lead Conversion</span>
+                                <span class="text-sm font-medium text-blue-600">34%</span>
+                            </div>
+                            <div class="w-full bg-gray-200 rounded-full h-2">
+                                <div class="bg-blue-600 h-2 rounded-full" style="width: 34%"></div>
+                            </div>
+                        </div>
+                        <div>
+                            <div class="flex justify-between mb-1">
+                                <span class="text-sm font-medium">Booking Rate</span>
+                                <span class="text-sm font-medium text-purple-600">45%</span>
+                            </div>
+                            <div class="w-full bg-gray-200 rounded-full h-2">
+                                <div class="bg-purple-600 h-2 rounded-full" style="width: 45%"></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="bg-white p-6 rounded-lg shadow-md">
+                    <h3 class="text-lg font-bold mb-4">Top Performing Agents</h3>
+                    <div class="space-y-3">
+                        <div class="flex justify-between items-center p-3 bg-gradient-to-r from-yellow-50 to-yellow-100 rounded">
+                            <div>
+                                <div class="font-semibold">🥇 Merideth AI</div>
+                                <div class="text-sm text-gray-600">247 calls, 89% success</div>
+                            </div>
+                            <div class="text-2xl">⭐⭐⭐⭐⭐</div>
+                        </div>
+                        <div class="flex justify-between items-center p-3 bg-gray-50 rounded">
+                            <div>
+                                <div class="font-semibold">🥈 Agent Alpha</div>
+                                <div class="text-sm text-gray-600">198 calls, 82% success</div>
+                            </div>
+                            <div class="text-2xl">⭐⭐⭐⭐</div>
+                        </div>
+                        <div class="flex justify-between items-center p-3 bg-gray-50 rounded">
+                            <div>
+                                <div class="font-semibold">🥉 Agent Beta</div>
+                                <div class="text-sm text-gray-600">165 calls, 78% success</div>
+                            </div>
+                            <div class="text-2xl">⭐⭐⭐⭐</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Billing Tab (Demo UI) -->
+        <div id="billing" class="tab-content">
+            <div class="bg-yellow-100 border-l-4 border-yellow-500 p-4 mb-6">
+                <p class="text-yellow-700"><strong>Demo Feature:</strong> Usage tracking, invoicing, and subscription management.</p>
+            </div>
+            <h2 class="text-2xl font-bold mb-6">Billing & Usage</h2>
+            <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
+                <div class="bg-gradient-to-br from-blue-500 to-blue-600 text-white p-6 rounded-lg shadow-lg">
+                    <div class="text-sm opacity-90">Current Plan</div>
+                    <div class="text-3xl font-bold my-2">Enterprise</div>
+                    <div class="text-lg">$499/month</div>
+                    <button onclick="demoFeature('Upgrade Plan')" class="mt-4 w-full px-4 py-2 bg-white text-blue-600 rounded font-semibold hover:bg-gray-100">Manage Plan</button>
+                </div>
+                <div class="bg-white p-6 rounded-lg shadow-md">
+                    <div class="text-sm text-gray-600">Monthly Usage</div>
+                    <div class="text-3xl font-bold text-gray-800 my-2">247</div>
+                    <div class="text-sm text-gray-600">calls out of 500 included</div>
+                    <div class="mt-4 w-full bg-gray-200 rounded-full h-2">
+                        <div class="bg-blue-600 h-2 rounded-full" style="width: 49.4%"></div>
+                    </div>
+                </div>
+                <div class="bg-white p-6 rounded-lg shadow-md">
+                    <div class="text-sm text-gray-600">Next Invoice</div>
+                    <div class="text-3xl font-bold text-gray-800 my-2">$499</div>
+                    <div class="text-sm text-gray-600">Due: March 1, 2026</div>
+                    <button onclick="demoFeature('Download Invoice')" class="mt-4 w-full px-4 py-2 bg-gray-200 text-gray-700 rounded hover:bg-gray-300">View Invoice</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Admin Tab (Demo UI) -->
+        <div id="admin" class="tab-content">
+            <div class="bg-yellow-100 border-l-4 border-yellow-500 p-4 mb-6">
+                <p class="text-yellow-700"><strong>Demo Feature:</strong> User management, role-based access control, and system configuration.</p>
+            </div>
+            <h2 class="text-2xl font-bold mb-6">Admin Panel</h2>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div class="bg-white p-6 rounded-lg shadow-md">
+                    <h3 class="text-lg font-bold mb-4">Team Members</h3>
+                    <div class="space-y-3">
+                        <div class="flex justify-between items-center p-3 bg-gray-50 rounded">
+                            <div>
+                                <div class="font-semibold">Admin User</div>
+                                <div class="text-sm text-gray-600">admin@nsolbpo.com</div>
+                            </div>
+                            <span class="px-3 py-1 bg-purple-100 text-purple-700 rounded-full text-sm">Admin</span>
+                        </div>
+                        <div class="flex justify-between items-center p-3 bg-gray-50 rounded">
+                            <div>
+                                <div class="font-semibold">Sales Manager</div>
+                                <div class="text-sm text-gray-600">sales@nsolbpo.com</div>
+                            </div>
+                            <span class="px-3 py-1 bg-blue-100 text-blue-700 rounded-full text-sm">Manager</span>
+                        </div>
+                    </div>
+                    <button onclick="demoFeature('Add User')" class="mt-4 w-full px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700">+ Add User</button>
+                </div>
+                <div class="bg-white p-6 rounded-lg shadow-md">
+                    <h3 class="text-lg font-bold mb-4">System Settings</h3>
+                    <div class="space-y-3">
+                        <button onclick="demoFeature('API Keys')" class="w-full text-left p-3 bg-gray-50 rounded hover:bg-gray-100">
+                            <div class="font-semibold">🔑 API Keys</div>
+                            <div class="text-sm text-gray-600">Manage integrations</div>
+                        </button>
+                        <button onclick="demoFeature('Webhooks')" class="w-full text-left p-3 bg-gray-50 rounded hover:bg-gray-100">
+                            <div class="font-semibold">🔗 Webhooks</div>
+                            <div class="text-sm text-gray-600">Configure callbacks</div>
+                        </button>
+                        <button onclick="demoFeature('Security')" class="w-full text-left p-3 bg-gray-50 rounded hover:bg-gray-100">
+                            <div class="font-semibold">🔒 Security</div>
+                            <div class="text-sm text-gray-600">2FA, IP whitelist</div>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <!-- Modals (Same as main dashboard) -->
+    <div id="createContactModal" class="modal fixed inset-0 bg-black bg-opacity-50 items-center justify-center">
+        <div class="bg-white p-8 rounded-lg w-96 max-h-[90vh] overflow-y-auto">
+            <h3 class="text-xl font-bold mb-4">New Contact</h3>
+            <form id="createContactForm" onsubmit="createContact(event)">
+                <div class="mb-3">
+                    <label class="block text-sm font-medium mb-1">Name *</label>
+                    <input type="text" id="contactName" required class="w-full px-3 py-2 border rounded">
+                </div>
+                <div class="mb-3">
+                    <label class="block text-sm font-medium mb-1">Phone * (E.164 format)</label>
+                    <input type="tel" id="contactPhone" required placeholder="+14155551234" class="w-full px-3 py-2 border rounded">
+                </div>
+                <div class="mb-3">
+                    <label class="block text-sm font-medium mb-1">Email</label>
+                    <input type="email" id="contactEmail" class="w-full px-3 py-2 border rounded">
+                </div>
+                <div class="mb-3">
+                    <label class="block text-sm font-medium mb-1">Company</label>
+                    <input type="text" id="contactCompany" class="w-full px-3 py-2 border rounded">
+                </div>
+                <div class="mb-3">
+                    <label class="block text-sm font-medium mb-1">Notes</label>
+                    <textarea id="contactNotes" rows="3" class="w-full px-3 py-2 border rounded"></textarea>
+                </div>
+                <div class="flex justify-end gap-2">
+                    <button type="button" onclick="closeModal('createContactModal')" class="px-4 py-2 bg-gray-300 rounded hover:bg-gray-400">Cancel</button>
+                    <button type="submit" class="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700">Create</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <div id="importCSVModal" class="modal fixed inset-0 bg-black bg-opacity-50 items-center justify-center">
+        <div class="bg-white p-8 rounded-lg w-96">
+            <h3 class="text-xl font-bold mb-4">Import Contacts from CSV</h3>
+            <div class="mb-4 p-4 bg-blue-50 border border-blue-200 rounded">
+                <p class="text-sm text-blue-800 mb-2">CSV Format Required:</p>
+                <code class="text-xs">name,phone,email,company,notes,tags,timezone</code>
+                <button onclick="downloadSampleCSV()" class="mt-2 text-blue-600 hover:underline text-sm">
+                    Download Sample CSV
+                </button>
+            </div>
+            <form id="importCSVForm" onsubmit="importCSV(event)">
+                <input type="file" id="csvFile" accept=".csv" required class="mb-4 w-full">
+                <div class="flex justify-end gap-2">
+                    <button type="button" onclick="closeModal('importCSVModal')" class="px-4 py-2 bg-gray-300 rounded hover:bg-gray-400">Cancel</button>
+                    <button type="submit" class="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700">Import</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <script>
+        const API_BASE = 'http://localhost:8000';
+        let authToken = localStorage.getItem('authToken');
+        let currentCallFilter = 'all';
+        let allContacts = [];
+
+        // Check authentication
+        window.addEventListener('load', () => {
+            if (!authToken) {
+                window.location.href = '/frontend/dashboard.html';
+                return;
+            }
+            loadDemoData();
+            initCharts();
+        });
+
+        // Load demo data
+        function loadDemoData() {
+            loadContacts();
+            loadCalls();
+        }
+
+        async function loadContacts() {
+            try {
+                const response = await axios.get(`${API_BASE}/api/contacts?page_size=100`, {
+                    headers: { 'Authorization': `Bearer ${authToken}` }
+                });
+                allContacts = response.data.contacts || [];
+                const container = document.getElementById('contactsList');
+                
+                if (allContacts.length === 0) {
+                    container.innerHTML = '<p class="text-gray-500 p-4">No contacts yet. Add your first contact!</p>';
+                    return;
+                }
+
+                container.innerHTML = `
+                    <table class="w-full">
+                        <thead class="bg-gray-100">
+                            <tr>
+                                <th class="px-4 py-2 text-left">Name</th>
+                                <th class="px-4 py-2 text-left">Phone</th>
+                                <th class="px-4 py-2 text-left">Email</th>
+                                <th class="px-4 py-2 text-left">Company</th>
+                                <th class="px-4 py-2 text-center">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${allContacts.map(contact => `
+                                <tr class="border-b hover:bg-gray-50">
+                                    <td class="px-4 py-3">${contact.name}</td>
+                                    <td class="px-4 py-3">${contact.phone}</td>
+                                    <td class="px-4 py-3">${contact.email || '-'}</td>
+                                    <td class="px-4 py-3">${contact.company || '-'}</td>
+                                    <td class="px-4 py-3 text-center">
+                                        <button onclick="makeCall(${contact.id})" title="Make Call" class="px-3 py-1 bg-green-600 text-white rounded hover:bg-green-700 text-sm mr-2">📞 Call</button>
+                                        <button onclick="deleteContact(${contact.id})" class="text-red-600 hover:text-red-800 text-sm">Delete</button>
+                                    </td>
+                                </tr>
+                            `).join('')}
+                        </tbody>
+                    </table>
+                `;
+            } catch (error) {
+                console.error('Error loading contacts:', error);
+            }
+        }
+
+        async function loadCalls() {
+            try {
+                const response = await axios.get(`${API_BASE}/api/calls?page_size=50`, {
+                    headers: { 'Authorization': `Bearer ${authToken}` }
+                });
+                const calls = response.data.calls || [];
+                displayCalls(calls);
+            } catch (error) {
+                console.error('Error loading calls:', error);
+            }
+        }
+
+        function displayCalls(calls) {
+            const container = document.getElementById('callsList');
+            
+            const filteredCalls = currentCallFilter === 'all' ? calls : calls.filter(c => c.status === currentCallFilter);
+            
+            if (filteredCalls.length === 0) {
+                container.innerHTML = '<p class="text-gray-500">No calls yet.</p>';
+                return;
+            }
+
+            container.innerHTML = filteredCalls.map(call => {
+                const statusColor = call.status === 'completed' ? 'green' : call.status === 'failed' ? 'red' : 'yellow';
+                const outcomeIcon = call.outcome === 'qualified' ? '✅' : call.outcome === 'not_qualified' ? '❌' : '⏳';
+                
+                return `
+                    <div class="bg-white p-4 rounded-lg shadow-md">
+                        <div class="flex justify-between items-start mb-2">
+                            <div>
+                                <span class="font-semibold">Call SID:</span> ${call.call_sid || 'N/A'}
+                            </div>
+                            <span class="px-3 py-1 bg-${statusColor}-100 text-${statusColor}-700 rounded-full text-sm">${call.status}</span>
+                        </div>
+                        <div class="text-sm text-gray-600 space-y-1">
+                            <div><span class="font-semibold">Duration:</span> ${call.duration || 0}s</div>
+                            <div><span class="font-semibold">Outcome:</span> ${outcomeIcon} ${call.outcome || 'N/A'}</div>
+                            <div><span class="font-semibold">Sentiment:</span> ${call.sentiment || 'N/A'}</div>
+                            ${call.transcript ? `
+                                <details class="mt-2">
+                                    <summary class="cursor-pointer text-blue-600 hover:underline">View Transcript</summary>
+                                    <div class="mt-2 p-3 bg-gray-50 rounded text-sm">${call.transcript}</div>
+                                </details>
+                            ` : ''}
+                            ${call.recording_url ? `<div><a href="${call.recording_url}" target="_blank" class="text-blue-600 hover:underline">🎵 Recording</a></div>` : ''}
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        function filterCalls(filter) {
+            currentCallFilter = filter;
+            loadCalls();
+        }
+
+        // Contact operations (same as main dashboard)
+        function showCreateContact() {
+            document.getElementById('createContactModal').classList.add('active');
+        }
+
+        async function createContact(e) {
+            e.preventDefault();
+            try {
+                await axios.post(`${API_BASE}/api/contacts`, {
+                    name: document.getElementById('contactName').value,
+                    phone: document.getElementById('contactPhone').value,
+                    email: document.getElementById('contactEmail').value,
+                    company: document.getElementById('contactCompany').value,
+                    notes: document.getElementById('contactNotes').value
+                }, {
+                    headers: { 'Authorization': `Bearer ${authToken}` }
+                });
+
+                closeModal('createContactModal');
+                document.getElementById('createContactForm').reset();
+                loadContacts();
+                alert('Contact created successfully!');
+            } catch (error) {
+                alert('Error creating contact: ' + (error.response?.data?.detail || error.message));
+            }
+        }
+
+        async function deleteContact(id) {
+            if (!confirm('Delete this contact?')) return;
+            try {
+                await axios.delete(`${API_BASE}/api/contacts/${id}`, {
+                    headers: { 'Authorization': `Bearer ${authToken}` }
+                });
+                loadContacts();
+                alert('Contact deleted!');
+            } catch (error) {
+                alert('Error deleting contact');
+            }
+        }
+
+        function showImportCSV() {
+            document.getElementById('importCSVModal').classList.add('active');
+        }
+
+        function downloadSampleCSV() {
+            window.location.href = '/sample_contacts.csv';
+        }
+
+        async function importCSV(e) {
+            e.preventDefault();
+            const fileInput = document.getElementById('csvFile');
+            const formData = new FormData();
+            formData.append('file', fileInput.files[0]);
+
+            try {
+                const response = await axios.post(`${API_BASE}/api/contacts/import/csv`, formData, {
+                    headers: { 
+                        'Authorization': `Bearer ${authToken}`,
+                        'Content-Type': 'multipart/form-data'
+                    }
+                });
+
+                closeModal('importCSVModal');
+                document.getElementById('importCSVForm').reset();
+                loadContacts();
+                alert(`Import complete! Success: ${response.data.success}, Failed: ${response.data.failed}`);
+            } catch (error) {
+                alert('Error importing CSV: ' + (error.response?.data?.detail || error.message));
+            }
+        }
+
+        async function makeCall(contactId) {
+            var ngrokUrl = null;
+            try {
+                var r = await axios.get(API_BASE + '/api/ngrok-url');
+                if (r.data && r.data.url) ngrokUrl = r.data.url;
+            } catch (e) {}
+            if (!ngrokUrl) ngrokUrl = localStorage.getItem('ngrokUrl');
+            if (!ngrokUrl) {
+                ngrokUrl = prompt('Enter your Ngrok HTTPS URL (e.g., https://xxxx.ngrok.io):');
+                if (!ngrokUrl) return;
+                if (!ngrokUrl.startsWith('https://') || !ngrokUrl.includes('ngrok')) {
+                    alert('Invalid Ngrok URL. Must be HTTPS and contain "ngrok"');
+                    return;
+                }
+                localStorage.setItem('ngrokUrl', ngrokUrl);
+            }
+            ngrokUrl = ngrokUrl.replace(/\/$/, '');
+
+            try {
+                const agentsResponse = await axios.get(`${API_BASE}/api/agents`, { headers: { 'Authorization': `Bearer ${authToken}` } });
+                const agents = agentsResponse.data.agents || [];
+                if (agents.length === 0) { alert('No agents available.'); return; }
+                const agentId = agents[0].id;
+                const callButton = event.target;
+                callButton.disabled = true;
+                callButton.textContent = 'Calling...';
+                const response = await axios.post(`${API_BASE}/api/outbound/call`, { agent_id: agentId, contact_id: contactId, ngrok_url: ngrokUrl }, { headers: { 'Authorization': `Bearer ${authToken}` } });
+                if (response.data && response.data.success === false && response.data.error) {
+                    alert('Call failed: ' + response.data.error);
+                    return;
+                }
+                alert('Call initiated! SID: ' + response.data.call_sid);
+                loadCalls();
+            } catch (error) {
+                var msg = (error.response && error.response.data && error.response.data.detail) ? error.response.data.detail : (error.response && error.response.data && error.response.data.error) ? error.response.data.error : error.message;
+                alert('Call failed: ' + msg);
+            } finally {
+                var btn = event.target;
+                if (btn) { btn.disabled = false; btn.textContent = '📞 Call'; }
+            }
+        }
+
+        function closeModal(modalId) {
+            document.getElementById(modalId).classList.remove('active');
+        }
+
+        // Tab navigation
+        function showTab(tabName) {
+            document.querySelectorAll('.tab-content').forEach(tab => tab.classList.remove('active'));
+            document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('bg-gray-700'));
+            document.getElementById(tabName).classList.add('active');
+            document.querySelector(`[data-tab="${tabName}"]`)?.classList.add('bg-gray-700');
+        }
+
+        // Demo feature placeholder
+        function demoFeature(featureName) {
+            alert(`✅ ${featureName} feature activated!\n\nThis is a demo placeholder. In the full system, this would:\n- Process real data\n- Integrate with external services\n- Provide detailed results\n\nShowing UI preview only for manager demo.`);
+        }
+
+        // Initialize Charts
+        function initCharts() {
+            // Call Volume Chart
+            const callVolumeCtx = document.getElementById('callVolumeChart').getContext('2d');
+            new Chart(callVolumeCtx, {
+                type: 'line',
+                data: {
+                    labels: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'],
+                    datasets: [{
+                        label: 'Calls',
+                        data: [142, 189, 234, 198, 267, 189, 247],
+                        borderColor: 'rgb(59, 130, 246)',
+                        backgroundColor: 'rgba(59, 130, 246, 0.1)',
+                        tension: 0.4
+                    }]
+                },
+                options: { responsive: true, maintainAspectRatio: true }
+            });
+
+            // Conversion Funnel Chart
+            const conversionCtx = document.getElementById('conversionChart').getContext('2d');
+            new Chart(conversionCtx, {
+                type: 'bar',
+                data: {
+                    labels: ['Contacted', 'Interested', 'Qualified', 'Closed'],
+                    datasets: [{
+                        label: 'Leads',
+                        data: [1834, 892, 456, 198],
+                        backgroundColor: [
+                            'rgba(59, 130, 246, 0.8)',
+                            'rgba(16, 185, 129, 0.8)',
+                            'rgba(245, 158, 11, 0.8)',
+                            'rgba(139, 92, 246, 0.8)'
+                        ]
+                    }]
+                },
+                options: { responsive: true, maintainAspectRatio: true }
+            });
+
+            // Outcomes Pie Chart
+            const outcomesCtx = document.getElementById('outcomesChart').getContext('2d');
+            new Chart(outcomesCtx, {
+                type: 'doughnut',
+                data: {
+                    labels: ['Qualified', 'Not Qualified', 'Callback', 'Voicemail'],
+                    datasets: [{
+                        data: [145, 67, 45, 23],
+                        backgroundColor: [
+                            'rgba(16, 185, 129, 0.8)',
+                            'rgba(239, 68, 68, 0.8)',
+                            'rgba(59, 130, 246, 0.8)',
+                            'rgba(156, 163, 175, 0.8)'
+                        ]
+                    }]
+                },
+                options: { responsive: true, maintainAspectRatio: true }
+            });
+
+            // Peak Hours Chart
+            const peakHoursCtx = document.getElementById('peakHoursChart').getContext('2d');
+            new Chart(peakHoursCtx, {
+                type: 'bar',
+                data: {
+                    labels: ['9AM', '10AM', '11AM', '12PM', '1PM', '2PM', '3PM', '4PM', '5PM'],
+                    datasets: [{
+                        label: 'Calls',
+                        data: [23, 45, 67, 34, 56, 78, 89, 67, 45],
+                        backgroundColor: 'rgba(139, 92, 246, 0.8)'
+                    }]
+                },
+                options: { responsive: true, maintainAspectRatio: true }
+            });
+        }
+    </script>
+</body>
+</html>

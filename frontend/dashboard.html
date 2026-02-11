@@ -1,0 +1,814 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>NSOL BPO - AI Call Assistant Dashboard</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
+    <style>
+        .tab-content { display: none; }
+        .tab-content.active { display: block; }
+        .modal { display: none; position: fixed; inset: 0; z-index: 9999; background: rgba(0,0,0,0.5); align-items: center; justify-content: center; }
+        .modal.active { display: flex !important; }
+    </style>
+</head>
+<body class="bg-gray-50">
+    <!-- Login Screen -->
+    <div id="loginScreen" class="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-500 to-purple-600">
+        <div class="bg-white p-8 rounded-2xl shadow-2xl w-96">
+            <h1 class="text-3xl font-bold text-center mb-2 text-gray-800">NSOL BPO</h1>
+            <p class="text-center text-gray-600 mb-6">AI Call Assistant Dashboard</p>
+            <form id="loginForm" onsubmit="login(event)">
+                <div class="mb-4">
+                    <label class="block text-gray-700 mb-2">Email</label>
+                    <input type="email" id="loginEmail" required 
+                        class="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        placeholder="admin@nsolbpo.com">
+                </div>
+                <div class="mb-6">
+                    <label class="block text-gray-700 mb-2">Password</label>
+                    <input type="password" id="loginPassword" required
+                        class="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        placeholder="Enter password">
+                </div>
+                <button type="submit" class="w-full bg-blue-600 text-white py-2 rounded-lg hover:bg-blue-700 transition">
+                    Login
+                </button>
+            </form>
+            <div id="loginError" class="mt-4 text-red-600 text-sm text-center hidden"></div>
+        </div>
+    </div>
+
+    <!-- Dashboard -->
+    <div id="dashboardScreen" class="hidden">
+        <!-- Header -->
+        <header class="bg-white shadow-md">
+            <div class="container mx-auto px-6 py-4 flex justify-between items-center">
+                <h1 class="text-2xl font-bold text-gray-800">📞 NSOL BPO Dashboard</h1>
+                <div class="flex items-center gap-4">
+                    <span id="twilioStatus" class="px-3 py-1 rounded-full text-sm font-medium bg-gray-200 text-gray-600" title="Twilio status">Checking...</span>
+                    <a href="/frontend/demo_dashboard.html" class="px-4 py-2 bg-gradient-to-r from-purple-500 to-blue-500 text-white rounded-lg hover:from-purple-600 hover:to-blue-600 font-medium shadow-lg">
+                        🎬 Demo Mode
+                    </a>
+                    <span id="userEmail" class="text-gray-600"></span>
+                    <button onclick="logout()" class="px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600">
+                        Logout
+                    </button>
+                </div>
+            </div>
+        </header>
+
+        <!-- Navigation -->
+        <nav class="bg-gray-800 text-white">
+            <div class="container mx-auto px-6">
+                <div class="flex space-x-1">
+                    <button onclick="showTab('overview')" class="tab-btn px-6 py-3 hover:bg-gray-700 rounded-t-lg" data-tab="overview">Dashboard</button>
+                    <button onclick="showTab('agents')" class="tab-btn px-6 py-3 hover:bg-gray-700 rounded-t-lg" data-tab="agents">Agents</button>
+                    <button onclick="showTab('contacts')" class="tab-btn px-6 py-3 hover:bg-gray-700 rounded-t-lg" data-tab="contacts">Contacts</button>
+                    <button onclick="showTab('calls')" class="tab-btn px-6 py-3 hover:bg-gray-700 rounded-t-lg" data-tab="calls">Calls</button>
+                    <button onclick="showTab('bookings')" class="tab-btn px-6 py-3 hover:bg-gray-700 rounded-t-lg" data-tab="bookings">Bookings</button>
+                </div>
+            </div>
+        </nav>
+
+        <!-- Main Content -->
+        <main class="container mx-auto px-6 py-8">
+            <!-- Overview Tab -->
+            <div id="overview" class="tab-content active">
+                <h2 class="text-2xl font-bold mb-6">Dashboard Overview</h2>
+                <div id="statsGrid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+                    <div class="bg-white p-6 rounded-lg shadow-md">
+                        <div class="text-gray-500 text-sm">Total Agents</div>
+                        <div class="text-3xl font-bold text-blue-600" id="totalAgents">0</div>
+                    </div>
+                    <div class="bg-white p-6 rounded-lg shadow-md">
+                        <div class="text-gray-500 text-sm">Total Contacts</div>
+                        <div class="text-3xl font-bold text-green-600" id="totalContacts">0</div>
+                    </div>
+                    <div class="bg-white p-6 rounded-lg shadow-md">
+                        <div class="text-gray-500 text-sm">Total Calls</div>
+                        <div class="text-3xl font-bold text-purple-600" id="totalCalls">0</div>
+                    </div>
+                    <div class="bg-white p-6 rounded-lg shadow-md">
+                        <div class="text-gray-500 text-sm">Success Rate</div>
+                        <div class="text-3xl font-bold text-orange-600" id="successRate">0%</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Agents Tab -->
+            <div id="agents" class="tab-content">
+                <div class="flex justify-between items-center mb-6">
+                    <h2 class="text-2xl font-bold">AI Agents</h2>
+                    <button type="button" onclick="showCreateAgent()" class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700">
+                        + New Agent
+                    </button>
+                </div>
+                <div id="agentsList" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4"></div>
+            </div>
+
+            <!-- Contacts Tab -->
+            <div id="contacts" class="tab-content">
+                <div class="flex justify-between items-center mb-6">
+                    <h2 class="text-2xl font-bold">Contacts</h2>
+                    <div class="flex gap-2">
+                        <button onclick="showImportCSV()" class="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700">
+                            📁 Import CSV
+                        </button>
+                        <button onclick="showCreateContact()" class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700">
+                            + New Contact
+                        </button>
+                    </div>
+                </div>
+                <div id="contactsList" class="bg-white rounded-lg shadow-md overflow-hidden"></div>
+            </div>
+
+            <!-- Calls Tab -->
+            <div id="calls" class="tab-content">
+                <div class="flex justify-between items-center mb-6">
+                    <h2 class="text-2xl font-bold">Call History</h2>
+                    <div class="flex gap-2">
+                        <button onclick="filterCalls('all')" class="px-3 py-1 bg-gray-200 hover:bg-gray-300 rounded">All</button>
+                        <button onclick="filterCalls('completed')" class="px-3 py-1 bg-green-100 hover:bg-green-200 rounded">Completed</button>
+                        <button onclick="filterCalls('in_progress')" class="px-3 py-1 bg-yellow-100 hover:bg-yellow-200 rounded">In Progress</button>
+                        <button onclick="filterCalls('failed')" class="px-3 py-1 bg-red-100 hover:bg-red-200 rounded">Failed</button>
+                    </div>
+                </div>
+                <div id="callsList" class="space-y-4"></div>
+            </div>
+
+            <!-- Bookings Tab -->
+            <div id="bookings" class="tab-content">
+                <div class="flex justify-between items-center mb-6">
+                    <h2 class="text-2xl font-bold">Bookings</h2>
+                    <div class="flex gap-2">
+                        <button onclick="filterBookings('all')" class="px-3 py-1 bg-gray-200 hover:bg-gray-300 rounded">All</button>
+                        <button onclick="filterBookings('pending')" class="px-3 py-1 bg-yellow-100 hover:bg-yellow-200 rounded">Pending</button>
+                        <button onclick="filterBookings('confirmed')" class="px-3 py-1 bg-green-100 hover:bg-green-200 rounded">Confirmed</button>
+                        <button onclick="filterBookings('completed')" class="px-3 py-1 bg-blue-100 hover:bg-blue-200 rounded">Completed</button>
+                    </div>
+                </div>
+                <button onclick="showCreateBooking()" class="mb-4 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700">
+                    + New Booking
+                </button>
+                <div id="bookingsList" class="space-y-4"></div>
+            </div>
+        </main>
+    </div>
+
+    <!-- Modals -->
+    <div id="createAgentModal" class="modal fixed inset-0 bg-black bg-opacity-50 items-center justify-center">
+        <div class="bg-white p-8 rounded-lg w-96 max-h-[90vh] overflow-y-auto">
+            <h3 class="text-xl font-bold mb-4">New AI Agent</h3>
+            <form id="createAgentForm" onsubmit="createAgent(event)">
+                <div class="mb-3">
+                    <label class="block text-sm font-medium mb-1">Agent Name *</label>
+                    <input type="text" id="agentName" required placeholder="e.g., Merideth" class="w-full px-3 py-2 border rounded">
+                </div>
+                <div class="mb-3">
+                    <label class="block text-sm font-medium mb-1">Voice ID (ElevenLabs)</label>
+                    <input type="text" id="agentVoiceId" placeholder="21m00Tcm4TlvDq8ikWAM" class="w-full px-3 py-2 border rounded">
+                    <p class="text-xs text-gray-500 mt-1">Leave empty to use default voice</p>
+                </div>
+                <div class="mb-3">
+                    <label class="block text-sm font-medium mb-1">System Prompt</label>
+                    <textarea id="agentPrompt" rows="4" placeholder="You are a professional AI assistant..." class="w-full px-3 py-2 border rounded"></textarea>
+                </div>
+                <div class="mb-3">
+                    <label class="block text-sm font-medium mb-1">Greeting Messages (separate with |)</label>
+                    <textarea id="agentGreetings" rows="3" placeholder="Hello, this is [name]|Hi there, [name] calling" class="w-full px-3 py-2 border rounded"></textarea>
+                </div>
+                <div class="mb-3">
+                    <label class="flex items-center">
+                        <input type="checkbox" id="agentActive" checked class="mr-2">
+                        <span class="text-sm font-medium">Active</span>
+                    </label>
+                </div>
+                <div class="flex justify-end gap-2">
+                    <button type="button" onclick="closeModal('createAgentModal')" class="px-4 py-2 bg-gray-300 rounded hover:bg-gray-400">Cancel</button>
+                    <button type="submit" class="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700">Create Agent</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <div id="createContactModal" class="modal fixed inset-0 bg-black bg-opacity-50 items-center justify-center">
+        <div class="bg-white p-8 rounded-lg w-96 max-h-[90vh] overflow-y-auto">
+            <h3 class="text-xl font-bold mb-4">New Contact</h3>
+            <form id="createContactForm" onsubmit="createContact(event)">
+                <div class="mb-3">
+                    <label class="block text-sm font-medium mb-1">Name *</label>
+                    <input type="text" id="contactName" required class="w-full px-3 py-2 border rounded">
+                </div>
+                <div class="mb-3">
+                    <label class="block text-sm font-medium mb-1">Phone * (E.164 format)</label>
+                    <input type="tel" id="contactPhone" required placeholder="+14155551234" class="w-full px-3 py-2 border rounded">
+                </div>
+                <div class="mb-3">
+                    <label class="block text-sm font-medium mb-1">Email</label>
+                    <input type="email" id="contactEmail" class="w-full px-3 py-2 border rounded">
+                </div>
+                <div class="mb-3">
+                    <label class="block text-sm font-medium mb-1">Company</label>
+                    <input type="text" id="contactCompany" class="w-full px-3 py-2 border rounded">
+                </div>
+                <div class="mb-3">
+                    <label class="block text-sm font-medium mb-1">Notes</label>
+                    <textarea id="contactNotes" rows="3" class="w-full px-3 py-2 border rounded"></textarea>
+                </div>
+                <div class="flex justify-end gap-2">
+                    <button type="button" onclick="closeModal('createContactModal')" class="px-4 py-2 bg-gray-300 rounded hover:bg-gray-400">Cancel</button>
+                    <button type="submit" class="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700">Create</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <div id="importCSVModal" class="modal fixed inset-0 bg-black bg-opacity-50 items-center justify-center">
+        <div class="bg-white p-8 rounded-lg w-96">
+            <h3 class="text-xl font-bold mb-4">Import Contacts from CSV</h3>
+            <div class="mb-4 p-4 bg-blue-50 border border-blue-200 rounded">
+                <p class="text-sm text-blue-800 mb-2">CSV Format Required:</p>
+                <code class="text-xs">name,phone,email,company,notes,tags,timezone</code>
+                <button onclick="downloadSampleCSV()" class="mt-2 text-blue-600 hover:underline text-sm">
+                    Download Sample CSV
+                </button>
+            </div>
+            <form id="importCSVForm" onsubmit="importCSV(event)">
+                <input type="file" id="csvFile" accept=".csv" required class="mb-4 w-full">
+                <div class="flex justify-end gap-2">
+                    <button type="button" onclick="closeModal('importCSVModal')" class="px-4 py-2 bg-gray-300 rounded hover:bg-gray-400">Cancel</button>
+                    <button type="submit" class="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700">Import</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <div id="createBookingModal" class="modal fixed inset-0 bg-black bg-opacity-50 items-center justify-center">
+        <div class="bg-white p-8 rounded-lg w-96 max-h-[90vh] overflow-y-auto">
+            <h3 class="text-xl font-bold mb-4">New Booking</h3>
+            <form id="createBookingForm" onsubmit="createBooking(event)">
+                <div class="mb-3">
+                    <label class="block text-sm font-medium mb-1">Select Contact *</label>
+                    <select id="bookingContactId" required class="w-full px-3 py-2 border rounded" onchange="autofillBookingContact()">
+                        <option value="">-- Select Contact --</option>
+                    </select>
+                </div>
+                <div class="mb-3">
+                    <label class="block text-sm font-medium mb-1">Meeting Date & Time *</label>
+                    <input type="datetime-local" id="bookingMeetingTime" required class="w-full px-3 py-2 border rounded">
+                </div>
+                <div class="mb-3">
+                    <label class="block text-sm font-medium mb-1">Timezone</label>
+                    <input type="text" id="bookingTimezone" value="UTC" class="w-full px-3 py-2 border rounded">
+                </div>
+                <div class="mb-3">
+                    <label class="block text-sm font-medium mb-1">Duration (minutes)</label>
+                    <input type="number" id="bookingDuration" value="30" class="w-full px-3 py-2 border rounded">
+                </div>
+                <div class="mb-3">
+                    <label class="block text-sm font-medium mb-1">Meeting Link (Zoom/Meet)</label>
+                    <input type="url" id="bookingMeetingLink" class="w-full px-3 py-2 border rounded">
+                </div>
+                <div class="mb-3">
+                    <label class="block text-sm font-medium mb-1">Notes</label>
+                    <textarea id="bookingNotes" rows="3" class="w-full px-3 py-2 border rounded"></textarea>
+                </div>
+                <div class="flex justify-end gap-2">
+                    <button type="button" onclick="closeModal('createBookingModal')" class="px-4 py-2 bg-gray-300 rounded hover:bg-gray-400">Cancel</button>
+                    <button type="submit" class="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700">Create</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <script>
+        const API_BASE = 'http://localhost:8000';
+        let authToken = localStorage.getItem('authToken');
+        let currentCallFilter = 'all';
+        let currentBookingFilter = 'all';
+        let allContacts = [];
+
+        // Authentication
+        async function login(e) {
+            e.preventDefault();
+            const email = document.getElementById('loginEmail').value;
+            const password = document.getElementById('loginPassword').value;
+
+            try {
+                const formData = new URLSearchParams();
+                formData.append('username', email);
+                formData.append('password', password);
+
+                const response = await axios.post(`${API_BASE}/api/auth/login`, formData, {
+                    headers: { 'Content-Type': 'application/x-www-form-urlencoded' }
+                });
+
+                authToken = response.data.access_token;
+                localStorage.setItem('authToken', authToken);
+                localStorage.setItem('userEmail', email);
+
+                document.getElementById('loginScreen').classList.add('hidden');
+                document.getElementById('dashboardScreen').classList.remove('hidden');
+                document.getElementById('userEmail').textContent = email;
+
+                loadDashboard();
+            } catch (error) {
+                document.getElementById('loginError').textContent = 'Invalid credentials';
+                document.getElementById('loginError').classList.remove('hidden');
+            }
+        }
+
+        function logout() {
+            localStorage.removeItem('authToken');
+            localStorage.removeItem('userEmail');
+            location.reload();
+        }
+
+        // Initialize
+        window.addEventListener('load', () => {
+            if (authToken) {
+                document.getElementById('loginScreen').classList.add('hidden');
+                document.getElementById('dashboardScreen').classList.remove('hidden');
+                document.getElementById('userEmail').textContent = localStorage.getItem('userEmail');
+                loadDashboard();
+            }
+        });
+
+        // Dashboard Loading
+        async function loadDashboard() {
+            loadStats();
+            loadAgents();
+            loadContacts();
+            loadCalls();
+            loadBookings();
+            loadTwilioStatus();
+        }
+
+        async function loadTwilioStatus() {
+            var el = document.getElementById('twilioStatus');
+            if (!el) return;
+            try {
+                var r = await axios.get(API_BASE + '/api/twilio/status');
+                if (r.data && r.data.configured) {
+                    el.textContent = 'Twilio: Ready';
+                    el.className = 'px-3 py-1 rounded-full text-sm font-medium bg-green-200 text-green-800';
+                    el.title = 'Twilio configured. You can make calls from Contacts.';
+                } else {
+                    el.textContent = 'Twilio: Not configured';
+                    el.className = 'px-3 py-1 rounded-full text-sm font-medium bg-red-200 text-red-800';
+                    el.title = r.data && r.data.message ? r.data.message : 'Set TWILIO_* in .env and restart server.';
+                }
+            } catch (e) {
+                el.textContent = 'Twilio: Check failed';
+                el.className = 'px-3 py-1 rounded-full text-sm font-medium bg-yellow-200 text-yellow-800';
+                el.title = 'Could not reach server or API.';
+            }
+        }
+
+        async function loadStats() {
+            try {
+                const response = await axios.get(`${API_BASE}/api/dashboard/stats`, {
+                    headers: { 'Authorization': `Bearer ${authToken}` }
+                });
+                const stats = response.data;
+                document.getElementById('totalAgents').textContent = stats.total_agents;
+                document.getElementById('totalContacts').textContent = stats.total_contacts;
+                document.getElementById('totalCalls').textContent = stats.total_calls;
+                document.getElementById('successRate').textContent = stats.success_rate + '%';
+            } catch (error) {
+                console.error('Error loading stats:', error);
+            }
+        }
+
+        async function loadAgents() {
+            try {
+                const response = await axios.get(`${API_BASE}/api/agents`, {
+                    headers: { 'Authorization': `Bearer ${authToken}` }
+                });
+                const agents = response.data.agents || [];
+                const container = document.getElementById('agentsList');
+                
+                if (agents.length === 0) {
+                    container.innerHTML = '<p class="text-gray-500">No agents yet. Create your first agent!</p>';
+                    return;
+                }
+
+                container.innerHTML = agents.map(agent => `
+                    <div class="bg-white p-6 rounded-lg shadow-md">
+                        <h3 class="font-bold text-lg mb-2">${agent.name}</h3>
+                        <div class="text-sm text-gray-600 mb-4">
+                            <div>Status: <span class="font-semibold ${agent.is_active ? 'text-green-600' : 'text-red-600'}">${agent.is_active ? 'Active' : 'Inactive'}</span></div>
+                        </div>
+                        <button onclick="deleteAgent(${agent.id})" class="text-red-600 hover:text-red-800 text-sm">Delete</button>
+                    </div>
+                `).join('');
+            } catch (error) {
+                console.error('Error loading agents:', error);
+            }
+        }
+
+        async function loadContacts() {
+            try {
+                const response = await axios.get(`${API_BASE}/api/contacts?page_size=100`, {
+                    headers: { 'Authorization': `Bearer ${authToken}` }
+                });
+                allContacts = response.data.contacts || [];
+                const container = document.getElementById('contactsList');
+                
+                if (allContacts.length === 0) {
+                    container.innerHTML = '<p class="text-gray-500 p-4">No contacts yet. Add your first contact!</p>';
+                    return;
+                }
+
+                container.innerHTML = `
+                    <table class="w-full">
+                        <thead class="bg-gray-100">
+                            <tr>
+                                <th class="px-4 py-2 text-left">Name</th>
+                                <th class="px-4 py-2 text-left">Phone</th>
+                                <th class="px-4 py-2 text-left">Email</th>
+                                <th class="px-4 py-2 text-left">Company</th>
+                                <th class="px-4 py-2 text-center">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${allContacts.map(contact => `
+                                <tr class="border-b hover:bg-gray-50">
+                                    <td class="px-4 py-3">${contact.name}</td>
+                                    <td class="px-4 py-3">${contact.phone}</td>
+                                    <td class="px-4 py-3">${contact.email || '-'}</td>
+                                    <td class="px-4 py-3">${contact.company || '-'}</td>
+                                    <td class="px-4 py-3 text-center">
+                                        <button onclick="makeCall(${contact.id})" title="Make Call" class="px-3 py-1 bg-green-600 text-white rounded hover:bg-green-700 text-sm mr-2">📞 Call</button>
+                                        <button onclick="deleteContact(${contact.id})" class="text-red-600 hover:text-red-800 text-sm">Delete</button>
+                                    </td>
+                                </tr>
+                            `).join('')}
+                        </tbody>
+                    </table>
+                `;
+            } catch (error) {
+                console.error('Error loading contacts:', error);
+            }
+        }
+
+        async function loadCalls() {
+            try {
+                const response = await axios.get(`${API_BASE}/api/calls?page_size=50`, {
+                    headers: { 'Authorization': `Bearer ${authToken}` }
+                });
+                const calls = response.data.calls || [];
+                displayCalls(calls);
+            } catch (error) {
+                console.error('Error loading calls:', error);
+            }
+        }
+
+        function displayCalls(calls) {
+            const container = document.getElementById('callsList');
+            
+            const filteredCalls = currentCallFilter === 'all' ? calls : calls.filter(c => c.status === currentCallFilter);
+            
+            if (filteredCalls.length === 0) {
+                container.innerHTML = '<p class="text-gray-500">No calls yet.</p>';
+                return;
+            }
+
+            container.innerHTML = filteredCalls.map(call => {
+                const statusColor = call.status === 'completed' ? 'green' : call.status === 'failed' ? 'red' : 'yellow';
+                const outcomeIcon = call.outcome === 'qualified' ? '✅' : call.outcome === 'not_qualified' ? '❌' : '⏳';
+                
+                return `
+                    <div class="bg-white p-4 rounded-lg shadow-md">
+                        <div class="flex justify-between items-start mb-2">
+                            <div>
+                                <span class="font-semibold">Call SID:</span> ${call.call_sid || 'N/A'}
+                            </div>
+                            <span class="px-3 py-1 bg-${statusColor}-100 text-${statusColor}-700 rounded-full text-sm">${call.status}</span>
+                        </div>
+                        <div class="text-sm text-gray-600 space-y-1">
+                            <div><span class="font-semibold">Duration:</span> ${call.duration || 0}s</div>
+                            <div><span class="font-semibold">Outcome:</span> ${outcomeIcon} ${call.outcome || 'N/A'}</div>
+                            <div><span class="font-semibold">Sentiment:</span> ${call.sentiment || 'N/A'}</div>
+                            ${call.transcript ? `
+                                <details class="mt-2">
+                                    <summary class="cursor-pointer text-blue-600 hover:underline">View Transcript</summary>
+                                    <div class="mt-2 p-3 bg-gray-50 rounded text-sm">${call.transcript}</div>
+                                </details>
+                            ` : ''}
+                            ${call.recording_url ? `<div><a href="${call.recording_url}" target="_blank" class="text-blue-600 hover:underline">🎵 Recording</a></div>` : ''}
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        function filterCalls(filter) {
+            currentCallFilter = filter;
+            loadCalls();
+        }
+
+        async function loadBookings() {
+            try {
+                const response = await axios.get(`${API_BASE}/api/bookings?page_size=50`, {
+                    headers: { 'Authorization': `Bearer ${authToken}` }
+                });
+                const bookings = response.data.bookings || [];
+                displayBookings(bookings);
+            } catch (error) {
+                console.error('Error loading bookings:', error);
+            }
+        }
+
+        function displayBookings(bookings) {
+            const container = document.getElementById('bookingsList');
+            
+            const filteredBookings = currentBookingFilter === 'all' ? bookings : bookings.filter(b => b.status === currentBookingFilter);
+            
+            if (filteredBookings.length === 0) {
+                container.innerHTML = '<p class="text-gray-500">No bookings yet.</p>';
+                return;
+            }
+
+            container.innerHTML = filteredBookings.map(booking => {
+                const statusColor = booking.status === 'confirmed' ? 'green' : booking.status === 'completed' ? 'blue' : 'yellow';
+                const meetingTime = new Date(booking.meeting_time);
+                const isUpcoming = meetingTime > new Date();
+                
+                return `
+                    <div class="bg-white p-4 rounded-lg shadow-md">
+                        <div class="flex justify-between items-start mb-2">
+                            <div>
+                                <span class="font-bold text-lg">${meetingTime.toLocaleString()}</span>
+                                ${isUpcoming ? '<span class="ml-2 px-2 py-1 bg-orange-100 text-orange-700 rounded text-xs">UPCOMING</span>' : ''}
+                            </div>
+                            <span class="px-3 py-1 bg-${statusColor}-100 text-${statusColor}-700 rounded-full text-sm">${booking.status}</span>
+                        </div>
+                        <div class="text-sm text-gray-600 space-y-1">
+                            <div><span class="font-semibold">Contact ID:</span> ${booking.contact_id}</div>
+                            <div><span class="font-semibold">Duration:</span> ${booking.duration_minutes} minutes</div>
+                            <div><span class="font-semibold">Timezone:</span> ${booking.timezone}</div>
+                            ${booking.meeting_link ? `<div><a href="${booking.meeting_link}" target="_blank" class="text-blue-600 hover:underline">📹 Join Meeting</a></div>` : ''}
+                            ${booking.notes ? `<div><span class="font-semibold">Notes:</span> ${booking.notes}</div>` : ''}
+                            <div class="mt-2">
+                                <span class="text-xs ${booking.confirmation_sent ? 'text-green-600' : 'text-gray-400'}">✉️ Confirmation: ${booking.confirmation_sent ? 'Sent' : 'Not Sent'}</span>
+                                <span class="ml-3 text-xs ${booking.reminder_sent ? 'text-green-600' : 'text-gray-400'}">🔔 Reminder: ${booking.reminder_sent ? 'Sent' : 'Not Sent'}</span>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        function filterBookings(filter) {
+            currentBookingFilter = filter;
+            loadBookings();
+        }
+
+        // Tab Navigation
+        function showTab(tabName) {
+            document.querySelectorAll('.tab-content').forEach(tab => tab.classList.remove('active'));
+            document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('bg-gray-700'));
+            document.getElementById(tabName).classList.add('active');
+            document.querySelector(`[data-tab="${tabName}"]`).classList.add('bg-gray-700');
+        }
+
+        // Contact Operations
+        function showCreateContact() {
+            document.getElementById('createContactModal').classList.add('active');
+        }
+
+        async function createContact(e) {
+            e.preventDefault();
+            try {
+                await axios.post(`${API_BASE}/api/contacts`, {
+                    name: document.getElementById('contactName').value,
+                    phone: document.getElementById('contactPhone').value,
+                    email: document.getElementById('contactEmail').value,
+                    company: document.getElementById('contactCompany').value,
+                    notes: document.getElementById('contactNotes').value
+                }, {
+                    headers: { 'Authorization': `Bearer ${authToken}` }
+                });
+
+                closeModal('createContactModal');
+                document.getElementById('createContactForm').reset();
+                loadContacts();
+                loadStats();
+                alert('Contact created successfully!');
+            } catch (error) {
+                alert('Error creating contact: ' + (error.response?.data?.detail || error.message));
+            }
+        }
+
+        async function deleteContact(id) {
+            if (!confirm('Delete this contact?')) return;
+            try {
+                await axios.delete(`${API_BASE}/api/contacts/${id}`, {
+                    headers: { 'Authorization': `Bearer ${authToken}` }
+                });
+                loadContacts();
+                loadStats();
+                alert('Contact deleted!');
+            } catch (error) {
+                alert('Error deleting contact');
+            }
+        }
+
+        function showImportCSV() {
+            document.getElementById('importCSVModal').classList.add('active');
+        }
+
+        function downloadSampleCSV() {
+            window.location.href = '/sample_contacts.csv';
+        }
+
+        async function importCSV(e) {
+            e.preventDefault();
+            const fileInput = document.getElementById('csvFile');
+            const formData = new FormData();
+            formData.append('file', fileInput.files[0]);
+
+            try {
+                const response = await axios.post(`${API_BASE}/api/contacts/import/csv`, formData, {
+                    headers: { 
+                        'Authorization': `Bearer ${authToken}`,
+                        'Content-Type': 'multipart/form-data'
+                    }
+                });
+
+                closeModal('importCSVModal');
+                document.getElementById('importCSVForm').reset();
+                loadContacts();
+                loadStats();
+                alert(`Import complete! Success: ${response.data.success}, Failed: ${response.data.failed}`);
+            } catch (error) {
+                alert('Error importing CSV: ' + (error.response?.data?.detail || error.message));
+            }
+        }
+
+        async function makeCall(contactId) {
+            var ngrokUrl = null;
+
+            try {
+                var r = await axios.get(API_BASE + '/api/ngrok-url');
+                if (r.data && r.data.url) ngrokUrl = r.data.url;
+            } catch (e) {}
+
+            if (!ngrokUrl) ngrokUrl = localStorage.getItem('ngrokUrl');
+            if (!ngrokUrl) {
+                ngrokUrl = prompt('Enter your Ngrok HTTPS URL (e.g., https://xxxx.ngrok.io):');
+                if (!ngrokUrl) return;
+                if (!ngrokUrl.startsWith('https://') || !ngrokUrl.includes('ngrok')) {
+                    alert('Invalid Ngrok URL. Must be HTTPS and contain "ngrok"');
+                    return;
+                }
+                localStorage.setItem('ngrokUrl', ngrokUrl);
+            }
+
+            ngrokUrl = ngrokUrl.replace(/\/$/, '');
+
+            try {
+                const agentsResponse = await axios.get(`${API_BASE}/api/agents`, {
+                    headers: { 'Authorization': `Bearer ${authToken}` }
+                });
+                const agents = agentsResponse.data.agents || [];
+                if (agents.length === 0) {
+                    alert('No agents available. Please create an agent first.');
+                    return;
+                }
+                const agentId = agents[0].id;
+
+                const callButton = event.target;
+                callButton.disabled = true;
+                callButton.textContent = 'Calling...';
+
+                const response = await axios.post(`${API_BASE}/api/outbound/call`, {
+                    agent_id: agentId,
+                    contact_id: contactId,
+                    ngrok_url: ngrokUrl
+                }, {
+                    headers: { 'Authorization': `Bearer ${authToken}` }
+                });
+
+                if (response.data && response.data.success === false && response.data.error) {
+                    alert('Call failed: ' + response.data.error);
+                    return;
+                }
+                alert('Call initiated! SID: ' + response.data.call_sid);
+                loadCalls();
+                loadStats();
+            } catch (error) {
+                var msg = (error.response && error.response.data && error.response.data.detail) ? error.response.data.detail : (error.response && error.response.data && error.response.data.error) ? error.response.data.error : error.message;
+                alert('Call failed: ' + msg);
+            } finally {
+                const callButton = event.target;
+                if (callButton) {
+                    callButton.disabled = false;
+                    callButton.textContent = '📞 Call';
+                }
+            }
+        }
+
+        // Booking Operations
+        function showCreateBooking() {
+            const select = document.getElementById('bookingContactId');
+            select.innerHTML = '<option value="">-- Select Contact --</option>' + 
+                allContacts.map(c => `<option value="${c.id}">${c.name} (${c.phone})</option>`).join('');
+            document.getElementById('createBookingModal').classList.add('active');
+        }
+
+        function autofillBookingContact() {
+            const contactId = document.getElementById('bookingContactId').value;
+            const contact = allContacts.find(c => c.id == contactId);
+            if (contact && contact.timezone) {
+                document.getElementById('bookingTimezone').value = contact.timezone;
+            }
+        }
+
+        async function createBooking(e) {
+            e.preventDefault();
+            try {
+                await axios.post(`${API_BASE}/api/bookings`, {
+                    contact_id: parseInt(document.getElementById('bookingContactId').value),
+                    meeting_time: document.getElementById('bookingMeetingTime').value,
+                    timezone: document.getElementById('bookingTimezone').value,
+                    duration_minutes: parseInt(document.getElementById('bookingDuration').value),
+                    meeting_link: document.getElementById('bookingMeetingLink').value,
+                    notes: document.getElementById('bookingNotes').value
+                }, {
+                    headers: { 'Authorization': `Bearer ${authToken}` }
+                });
+
+                closeModal('createBookingModal');
+                document.getElementById('createBookingForm').reset();
+                loadBookings();
+                loadStats();
+                alert('Booking created successfully!');
+            } catch (error) {
+                alert('Error creating booking: ' + (error.response?.data?.detail || error.message));
+            }
+        }
+
+        // Agent Operations
+        function showCreateAgent() {
+            var modal = document.getElementById('createAgentModal');
+            if (modal) {
+                modal.classList.add('active');
+                modal.style.display = 'flex';
+                modal.style.visibility = 'visible';
+            } else {
+                alert('Error: Could not find create agent form.');
+            }
+        }
+
+        async function createAgent(e) {
+            e.preventDefault();
+            try {
+                await axios.post(`${API_BASE}/api/agents`, {
+                    name: document.getElementById('agentName').value,
+                    voice_id: document.getElementById('agentVoiceId').value || null,
+                    prompt: document.getElementById('agentPrompt').value || null,
+                    greeting_messages: document.getElementById('agentGreetings').value || null,
+                    is_active: document.getElementById('agentActive').checked
+                }, {
+                    headers: { 'Authorization': `Bearer ${authToken}` }
+                });
+
+                closeModal('createAgentModal');
+                document.getElementById('createAgentForm').reset();
+                loadAgents();
+                loadStats();
+                alert('Agent created successfully!');
+            } catch (error) {
+                alert('Error creating agent: ' + (error.response?.data?.detail || error.message));
+            }
+        }
+
+        async function deleteAgent(id) {
+            if (!confirm('Delete this agent?')) return;
+            try {
+                await axios.delete(`${API_BASE}/api/agents/${id}`, {
+                    headers: { 'Authorization': `Bearer ${authToken}` }
+                });
+                loadAgents();
+                loadStats();
+                alert('Agent deleted!');
+            } catch (error) {
+                alert('Error deleting agent');
+            }
+        }
+
+        function closeModal(modalId) {
+            var modal = document.getElementById(modalId);
+            if (modal) {
+                modal.classList.remove('active');
+                modal.style.display = 'none';
+                modal.style.visibility = 'hidden';
+            }
+        }
+    </script>
+</body>
+</html>

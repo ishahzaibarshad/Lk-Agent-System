@@ -51,6 +51,10 @@ logs/
 .env.local
 .env.*.local
 
+# Local database
+*.db
+nsol_bpo.db
+
 # Audio files
 *.wav
 *.mp3
