@@ -6,7 +6,8 @@ QUICK START
 -----------
 1. Double-click START.bat to start the system
 2. Wait for browser to open (http://localhost:8000/frontend/dashboard.html)
-3. Do not use default login credentials. Configure a unique administrator credential using a verified application setup path before any deployment. Verify account provisioning in the application code.\n4. To stop: Double-click STOP.bat
+3. Do not use default login credentials. Configure a unique administrator credential using a verified application setup path before any deployment. Verify account provisioning in the application code.
+4. To stop: Double-click STOP.bat
 
 SYSTEM COMPONENTS
 -----------------
